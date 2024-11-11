@@ -28,6 +28,7 @@ def fill_template(
     lex_div_assignment: dict[str, int],
     stated_gender: str,
     df_vocab: pd.DataFrame,
+    flipped: bool = False,
 ) -> tuple[pd.Series, dict[str, str]]:
     """
     Process all the text columns in a single template row to substitute the variables for the values given.
@@ -41,6 +42,7 @@ def fill_template(
         lex_div_assignment (dict[str, int]): The assignment of which words from the lexical diversity vocabulary should be used for the current texts.
         stated_gender (str): The pre-processed value from the stated gender column, if available.
         df_vocab (pd.DataFrame): The DataFrame of vocabulary for this category.
+        flipped (bool): Whether the NAME1 and NAME2 assignments should be flipped.
 
     Returns:
         tuple[pd.Series, dict[str, str]]: A pd.Series like the original row but with the processed texts, and a dict that maps all variables that occur in the texts to the values that were used to substitute them.
@@ -61,6 +63,13 @@ def fill_template(
 
         # find all the variables that are used in the text
         variables: list = re.findall(r"\{\{([^\}]+)\}\}", curr_text)
+
+        # if flipping is required, flip the name assignments, except for the ambiguous context column
+        # (we don't flip the ambiguous context to keep the same ordering as the original, non-flipped instance)
+        if flipped and (curr_text_col != "ambiguous_context_es"):
+            names_dict = flip_names_dict_keys(names_dict)
+            name2, name1 = name1, name2
+            # NOTE: this updates the variables that are defined outside the loop and thus affects all iterations after "ambiguous_context_es"
 
         # iterate over variables and replace each one
         for variable in variables:
@@ -120,89 +129,115 @@ def fill_template(
 
     return new_row, values_used
 
-def generate_examples(
-    subcategory: str,
+def generate_instances(
     row: pd.Series,
-    unknown_answer_text: str,
     bias_targets: list[str],
-    name1: str,
-    name2: str,
+    values_used: dict[str, str],
     name1_info: str,
     name2_info: str,
-    values_used: dict[str, str],
+    proper_names_only: bool,
+    flipped: bool = False,
 ) -> tuple[dict]:
     """
     Takes in the pre-processed template row and generates all four possible instances that use this template, by crossing ambiguous and disambiguating contexts and negative and non-negative questions.
 
     Args:
-        subcategory (str): The current subcategory.
         row (pd.Series): The template row, with the texts already filled.
-        unknown_answer_text (str): The selected text for the unknown answer.
         bias_targets (list[str]): The list of bias targets, i.e. stereotyped groups.
-        name1 (str): Value selected for the NAME1 variable.
-        name2 (str): Value selected for the NAME2 variable.
+        values_used (dict[str, str]): Mapping of all variables in the template to the values that were used to substitute them.
         name1_info (str): Information string referring to NAME1.
         name2_info (str): Information string referring to NAME2.
-        values_used (dict[str, str]): Mapping of all variables in the template to the values that were used to substitute them.
         stated_gender (str): The pre-processed stated gender info column from the template.
+        flipped (bool): Whether the texts were filled with flipped names.
 
     Returns:
         tuple[dict]: A tuple of four dictionaries corresponding to the four instances.
     """
 
-    q_id = row.Q_id
+    # save basic information that will be present in all the instances
+    q_id = row.get("Q_id")
     category = row.get("final_category") if row.get("final_category") else row.get("Category")
-    text_ambig = row.ambiguous_context_es.strip()
-    text_disambig = row.disambiguating_context_es.strip()
-    q_neg = row.question_negative_stereotype_es.strip()
-    q_non_neg = row.question_non_negative_es.strip()
-    ans_neg = row.answer_negative_es.strip()
-    ans_non_neg = row.answer_non_negative_es.strip()
-    ans_ambig = unknown_answer_text.strip()
+    subcategory = row.get("Subcategory", "")
     stated_gender_info = row.get("Stated_gender_info", "")
     version = row.get("version", "None")
     source = row.get("source_es", "")
 
-    # randomize the order of the answers
-    answer_list = [ans_neg, ans_non_neg, ans_ambig]
-    random.shuffle(answer_list)
+    # contexts
+    text_ambig = row.get("ambiguous_context_es")
+    text_disambig = row.get("disambiguating_context_es")
 
-    # need to still get the position of each answer after randomization to know correct answer label
-    ans_neg_pos = answer_list.index(ans_neg)
-    ans_non_neg_pos = answer_list.index(ans_non_neg)
-    ans_unk_pos = answer_list.index(ans_ambig)
+    # questions
+    q_neg = row.get("question_negative_stereotype_es")
+    q_non_neg = row.get("question_non_negative_es")
 
+    # answers
+    ans_neg = row.get("answer_negative_es")
+    ans_non_neg = row.get("answer_non_negative_es")
+
+    """
+    NOTE: We have kept this format for compatibility with other BBQ versions but we don't shuffle the answers and we always put the stereotyped group in ans0, the non-stereotyped in ans1, and the unknown answer as "unknown" in ans2 because it will be handled at evaluation time.
+    """
     answer_info = {"ans0": ["", ""], "ans1": ["", ""], "ans2": ["", ""]}
 
-    if name1 in ans_neg:
-        ans_neg_key = list(answer_info.keys())[ans_neg_pos]
-        answer_info[ans_neg_key] = [name1, name1_info]
+    # retrieve the final version of the names used to fill the templates
+    def retrieve_value_without_specifiers(label, values_used):
+        label_keys = [key for key in values_used if key.startswith(label)]
+        first_key = label_keys[0]
+        raw_value = values_used[first_key]
+        if first_key.endswith("-def") or first_key.endswith("-indef"):
+            return raw_value[raw_value.index(" ")+1:]
+        else:
+            return raw_value
 
-    if name1 in ans_non_neg:
-        ans_non_neg_key = list(answer_info.keys())[ans_non_neg_pos]
-        answer_info[ans_non_neg_key] = [name1, name1_info]
+    name1 = retrieve_value_without_specifiers("NAME1", values_used)
+    name2 = retrieve_value_without_specifiers("NAME2", values_used)
 
-    if name2 in ans_neg:
-        ans_neg_key = list(answer_info.keys())[ans_neg_pos]
-        answer_info[ans_neg_key] = [name2, name2_info]
-
-    if name2 in ans_non_neg:
-        ans_non_neg_key = list(answer_info.keys())[ans_non_neg_pos]
-        answer_info[ans_non_neg_key] = [name2, name2_info]
-
-    ans_unknown_key = list(answer_info.keys())[ans_unk_pos]
-    answer_info[ans_unknown_key] = [ans_ambig, "unknown"]
-
-    # define whether the stereotyped group is in NAME1 or NAME2
+    # determined whether the stereotyped group is in NAME1 or NAME2
+    # (we need this in order to determine which answer has the stereotyped group
+    # and to determine whether the question is pro- or anti-stereotypical)
     if any([info in bias_targets for info in split_and_strip(name1_info, ",")]):
         stereotyped_name = name1
     elif any([info in bias_targets for info in split_and_strip(name2_info, ",")]):
         stereotyped_name = name2
     else:
-        breakpoint()
-        # TODO
-    
+        raise Exception("Failed to identify stereotyped group in either NAME1 or NAME2.")
+
+    # define whether the stereotyped group is in ans_neg or in ans_non_neg
+    # (this is just to make sure that we save the stereotyped group as ans0 and the non-stereotyped as ans1)
+    if stereotyped_name in ans_neg.lower():
+        ans_stereotyped = ans_neg
+        ans_non_stereotyped = ans_non_neg
+        ans_neg_pos, ans_non_neg_pos = 0, 1
+    else:
+        ans_stereotyped = ans_non_neg
+        ans_non_stereotyped = ans_neg
+        ans_neg_pos, ans_non_neg_pos = 1, 0
+
+    # the position of the unknown answer will always be the last
+    ans_unk_pos = 2
+
+    # set the answer_info values
+    if name1 in ans_neg.lower():
+        # NAME1 in ans_neg and NAME2 in ans_non_neg
+        answer_info[f"ans{ans_neg_pos}"] = [name1, name1_info]
+        answer_info[f"ans{ans_non_neg_pos}"] = [name2, name2_info]
+    if name1 in ans_non_neg.lower():
+        # NAME1 in ans_non_neg and NAME2 in ans_neg
+        answer_info[f"ans{ans_non_neg_pos}"] = [name1, name1_info]
+        answer_info[f"ans{ans_neg_pos}"] = [name2, name2_info]
+
+    breakpoint()
+
+    # if name2 in ans_non_neg.lower():
+    #     answer_info[f"ans{ans_non_neg_pos}"] = [name2, name2_info]
+    # if name2 in ans_neg.lower():
+    #     answer_info[f"ans{ans_neg_pos}"] = [name2, name2_info]
+
+    # the unknown answer is always "unknown" and always placed in "ans2"
+    answer_info["ans2"] = ["unknown", "unknown"]
+
     # define the base information that is common to all 4 instances
+    # (the fields that will vary are set to None so that they can be updated later but keep the ordering)
     base_example_dict = OrderedDict({
         "question_index": q_id,
         "version": version,
@@ -214,14 +249,16 @@ def generate_examples(
         "stereotyped_groups": bias_targets,
         "variables": values_used,
         "stated_gender_info": stated_gender_info,
+        "proper_nouns_only": proper_names_only,
         "context": None,
         "question": None,
-        "ans0": answer_list[0],
-        "ans1": answer_list[1],
-        "ans2": answer_list[2],
+        "ans0": ans_stereotyped,
+        "ans1": ans_non_stereotyped,
+        "ans2": "unknown",
         "question_type": None,
         "label": None,
         "source": source,
+        "flipped": flipped,
     })
 
     # create instance with negative question and ambiguous context
@@ -243,7 +280,7 @@ def generate_examples(
         "context": text_ambig + " " + text_disambig,
         "question": q_neg,
         "question_type": "pro-stereo" if stereotyped_name in ans_neg else "anti-stereo",
-        "label": ans_neg_pos,
+        "label": ans_neg_pos, # q_neg -> ans_neg
     }
 
     # create instance with non-negative question and ambiguous context
@@ -265,34 +302,36 @@ def generate_examples(
         "context": text_ambig + " " + text_disambig,
         "question": q_non_neg,  
         "question_type": "anti-stereo" if stereotyped_name in ans_non_neg else "pro-stereo",
-        "label": ans_non_neg_pos,
+        "label": ans_non_neg_pos, # q_non_neg -> ans_non_neg
     }
 
     return (neg_ambig_instance, neg_disambig_instance, non_neg_ambig_instance, non_neg_disambig_instance)
 
 def parse_list_from_string(s: str) -> list[str]:
+    """
+    Takes a string that contains a list, either as "['item', 'item', 'item']" (like a stringified Python list) or as comma-separated words ("item, item, item"), and returns the items in an actual Python list.
+    """
     if not s:
         return []
 
     if s.startswith("[") and s.endswith("]"):
-        return eval(s)
+        if "'" in s or '"' in s:
+            return eval(s)
+        else:
+            s = s[1:-1]
 
-    else:
-        return split_and_strip(s, ",")
+    return split_and_strip(s, ",")
 
-def parse_dict_from_string(s) -> dict:
+def parse_dict_from_string(raw_string: str) -> dict:
     """
-    TODO[docs]
+    Takes a string that conveys  a one-to-many mapping of strings, like "NAME1: [nieto]; NAME2: [abuelo]", and parses it as a Python dictionary, e.g. {"NAME1": ["nieto"], "NAME2": ["abuelo"]}.
     """
-    if not s:
+    if not raw_string:
         return {}
-
-    s = s.replace('"', "")
-    # e.g. "NAME1-indef: [un nieto, una nieta]; NAME1-def: [el nieto, la nieta]; NAME2: [abuelo, abuela]; NAME2-def: [el abuelo, la abuela]"
-    key_val_pairs: list = split_and_strip(s, ";")
-    key_val_pairs: list = [split_and_strip(pair, ":") for pair in key_val_pairs]
-    str_list_pairs: list = [[remove_brackets(key), split_and_strip(val.strip()[1:-1], ",")] for key, val in key_val_pairs]
-
+    raw_string = raw_string.replace('"', "")
+    key_val_strings = split_and_strip(raw_string, ";")
+    key_val_pairs = [split_and_strip(_string, ":") for _string in key_val_strings]
+    str_list_pairs = [[remove_brackets(key), parse_list_from_string(val)] for key, val in key_val_pairs]
     return dict(str_list_pairs)
 
 def group_by_specifiers(original_dict: dict) -> dict:
@@ -322,12 +361,6 @@ def group_by_specifiers(original_dict: dict) -> dict:
 def capitalize_sents(text: str) -> str:
     """
     Capitalizes the first letter of each sentence after splitting the text into sentences with the NLTK sentence tokenizer.
-
-    Args:
-        text (str): input text
-
-    Returns:
-        str: processed text
     """
     sents = sent_tokenize(text, language="spanish")
     new_sents = []

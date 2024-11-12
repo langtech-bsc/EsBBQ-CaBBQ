@@ -1,0 +1,9 @@
+category,m,f,n,m vs. f,m_and_f,m_and_f_and_n,total
+Age,336,0,880,0,1328,0,2544
+DisabilityStatus,48,64,432,0,1120,0,1664
+GenderIdentity,0,64,8,1864,128,152,2216
+Nationality,232,0,48,0,32,0,312
+PhysicalAppearance,160,200,792,0,80,0,1232
+RaceEthnicity,568,1424,240,0,4256,0,6488
+SES,0,0,600,0,7360,0,7960
+SexualOrientation,304,48,96,0,320,0,768

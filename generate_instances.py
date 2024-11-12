@@ -3,19 +3,19 @@ import json
 import os
 import random
 import re
-from tabulate import tabulate
 
 import pandas as pd
+from tabulate import tabulate
 
 from utils import (
     fill_template,
-    flip_names_dict_keys,
+    flatten_nested_dicts,
     generate_instances,
     get_lex_div_combinations,
     group_by_specifiers,
     parse_dict_from_string,
     parse_list_from_string,
-    flatten_nested_dicts
+    validate_template,
 )
 
 # set seed to avoid non-determinism
@@ -38,10 +38,10 @@ output_format_choices = ["jsonl", "csv"]
 all_categories = [re.match(r"final_(\w+).xlsx", fn).group(1) for fn in os.listdir("templates_es") if fn.startswith("final_")]
 
 # create parser for the CLI arguments
-parser = argparse.ArgumentParser(prog="Generate BBQ Instances", description="This script will read the Excel files in the input folder and generate BBQ instances for all the categories.")
+parser = argparse.ArgumentParser(prog="Generate BBQ Instances", description="This script will read the Excel files in the input folder and generate BBQ instances for all the categories. By default, generates instances from all the templates in all the categories.")
 parser.add_argument("--categories", nargs="+", choices=all_categories, default=all_categories, help="Space-separated list of categories to process templates and generate instances. If not passed, will run for all available categories.")
 parser.add_argument("--minimal", action="store_true", help="Minimize he sources of variation in instances by only taking one option from each source of variation.")
-parser.add_argument("--output-formats", nargs="+", choices=output_format_choices, default=output_format_choices, help=f"Space-separated format(s) in which to save the instances.")
+parser.add_argument("--output-formats", nargs="+", choices=output_format_choices, default=output_format_choices, help="Space-separated format(s) in which to save the instances.")
 parser.add_argument("--dry-run", action="store_true", help="Generate the templates and print the logs and stats but don't actually save them to file.")
 parser.add_argument("--no-proper-names", action="store_true", help="Ignore the templates that require proper names in all categories contemplated.")
 parser.add_argument("--save-fertility", action="store_true", help="Save an extra CSV with the fertility (instance count) of each template.")
@@ -70,8 +70,6 @@ for curr_category in args.categories:
     df_category = df_category[(df_category.ambiguous_context_es != "") & (df_category.source_es != "-") & (df_category.final_stereotyped_groups != "-")]
     print(f"[{curr_category}] Imported {len(df_category)} templates.")
 
-    df_category = df_category[(df_category.Q_id == 17) & (df_category.version == "a")] # TEST!
-
     # save the number of templates in stats
     df_stats.at[curr_category, "num_templates"] = len(set(df_category.Q_id))
     df_stats.at[curr_category, "num_rows"] = len(df_category)
@@ -85,6 +83,8 @@ for curr_category in args.categories:
         ROW CONFIG
         """
 
+        validate_template(curr_row)
+#
         # dictionaries that will store pre-processed values from the names column and the lexical diversity column
         grouped_names_dict = {}
         grouped_lex_div_dict = {}
@@ -168,11 +168,11 @@ for curr_category in args.categories:
 
                 # force NAME1 to be female
                 name1_list = df_names[df_names.gender == "f"].Name.unique().tolist()
-                name1_info = "f"
+                name1_info_dict.update({name : "f" for name in name1_list})
 
                 # force NAME2 to be male
                 name2_list = df_names[df_names.gender == "m"].Name.unique().tolist()
-                name2_info = "m"
+                name2_info_dict.update({name : "m" for name in name2_list})
 
             # In the case of other categories that use proper nouns, they can be of any gender but we don't want them to elicit any specific ethnicities so we take only typical white Spanish names
             else:
@@ -210,9 +210,6 @@ for curr_category in args.categories:
                 name1_list = grouped_names_dict["NAME1"][None]
                 name2_list = grouped_names_dict["NAME2"][None]
 
-                name1_info = curr_row.get("NAME1_info")
-                name2_info = curr_row.get("NAME2_info")
-
         if args.minimal:
             name1_list = name1_list[:1]
 
@@ -246,12 +243,12 @@ for curr_category in args.categories:
         """
 
         for name1 in name1_list:
-            # try to set info field if it hasn't been determined yet
-            if not name1_info:
-                if name1 in name1_info_dict:
-                    name1_info = name1_info_dict[name1]
-                else:
-                    name1_info = curr_row.get("NAME1_info")
+            
+            # set info field
+            if name1 in name1_info_dict:
+                name1_info = name1_info_dict[name1]
+            else:
+                name1_info = curr_row.get("NAME1_info")
 
             # set possible values for NAME2 here when they depend on NAME1
             # (in which case they could not be determined before the NAME1 loop)
@@ -297,8 +294,11 @@ for curr_category in args.categories:
             Iterate over all the names in the NAME2 list
             """
             for name2 in name2_list:
+                if name2 in name2_info_dict:
+                    name2_info = name2_info_dict[name2]
+                else:
+                    name2_info = curr_row.get("NAME2_info")
 
-                # record info
                 if curr_category == "RaceEthnicity" and proper_names_only:
                     name2_info = name2_info_dict[name2]
 
@@ -346,6 +346,8 @@ for curr_category in args.categories:
                             # here we pass name1_info and name2_info already flipped
                             new_instances: list[dict] = generate_instances(row=new_row, bias_targets=bias_targets, values_used=values_used, name1_info=name2_info, name2_info=name1_info, proper_names_only=proper_names_only, flipped=True)
                             generated_instances.extend(new_instances)
+
+    assert len(generated_instances), f"No instances generated for {curr_category}!"
 
     print(f"[{curr_category}] Generated {len(generated_instances)} sentences total.")
 

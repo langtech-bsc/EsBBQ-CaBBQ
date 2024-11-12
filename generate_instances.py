@@ -234,9 +234,6 @@ for curr_category in args.categories:
         if args.minimal:
             lex_div_combinations = lex_div_combinations[:1]
 
-        # _name1_lengths.append(len(name1_list))
-        # _lex_div_lengths.append(len(lex_div_combinations))
-
         """
         NAME1 LOOP
         Iterate over the list of possible values for NAME1

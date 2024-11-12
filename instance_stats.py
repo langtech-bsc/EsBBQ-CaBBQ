@@ -108,7 +108,7 @@ for file in sorted(os.listdir("data_es")):
         # Group gender info at "question_index" level (i.e. at template level)
         gender_combinations = df.groupby('question_index')['stated_gender_info'].apply(lambda x: set(x)).to_dict()
 
-        # Store in a new column de gender info of the instance at template level
+        # Store in a new column the gender info of the instance at template level
         df['instance_gender_info'] = df.apply(instance_gender_info, axis=1)
 
         # Store the result in the dictionary
@@ -128,7 +128,7 @@ for file in sorted(os.listdir("data_es")):
         # Get stereotyped group of the instance from second element of the list in 'answer_info.ans0' 
         # Convert string representations to actual lists and keep only 2nd element
         df['answer_info.ans0'] = df['answer_info.ans0'].str.strip("[]").str.replace("'", "").str.split(", ")
-        df['answer_info.ans0'] = df['answer_info.ans0'].apply(lambda x: x[1])
+        df['answer_info.ans0'] = df['answer_info.ans0'].apply(lambda x: x[-1])
 
         # Count occurrences of each group
         groups_category_dict[category] = df['answer_info.ans0'].value_counts().to_dict()

@@ -29,6 +29,10 @@ def validate_template(template_row: pd.Series) -> None:
     if "WORD" in template_row.ambiguous_context_es or "WORD" in template_row.disambiguating_context_es:
         assert template_row.get("lexical_diversity_es"), "WORD variable used in context but lexical diversity is empty!"
 
+    # except in GenderIdentity, stated gender is required in all the cases that don't use proper names
+    if (template_row.final_category and template_row.final_category != 'GenderIdentity') or (not template_row.final_category and template_row.Category != "GenderIdentity"):
+        assert not (template_row.get("Proper_nouns_only") == 1 and template_row.get("Stated_gender_info") == ""), "No gender info stated!"
+
 def fill_template(
     template_row: pd.Series,
     name1: str,

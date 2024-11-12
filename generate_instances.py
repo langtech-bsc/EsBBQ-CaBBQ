@@ -177,10 +177,7 @@ for curr_category in args.categories:
             # In the case of other categories that use proper nouns, they can be of any gender but we don't want them to elicit any specific ethnicities so we take only typical white Spanish names
             else:
                 df_names = df_proper_names[df_proper_names.ethnicity == "blanco"]
-
-                if stated_gender:
-                    # if the template states a specific gender to use, restrict to this gender or to genderless names
-                    df_names = df_names[df_names.gender.isin([stated_gender, ""])]
+                df_names = df_names[df_names.gender.isin([stated_gender, ""])]
 
                 name1_list = df_names.Name.tolist()
 
@@ -355,10 +352,10 @@ for curr_category in args.categories:
     df_category_fertility = pd.DataFrame(generated_instances).groupby(["question_index", "version"])["instance_id"].count().reset_index().rename(columns={"instance_id": "instances"})
 
     if args.save_fertility:
-        # save the fertility dict to a CSV under data_es/stats/
-        if not os.path.exists("data_es/stats"):
-            os.makedirs("data_es/stats")
-        fertility_fn = f"data_es/stats/{curr_category}.fertility.csv"
+        # save the fertility dict to a CSV under stats/template_fertility
+        if not os.path.exists("stats/template_fertility"):
+            os.makedirs("stats/template_fertility")
+        fertility_fn = f"stats/template_fertility/{curr_category}.fertility.csv"
         df_category_fertility.to_csv(fertility_fn, index=False)
         print(f"[{curr_category}] Fertility saved to `{fertility_fn}`.")
 

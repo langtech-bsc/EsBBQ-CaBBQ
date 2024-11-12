@@ -17,6 +17,18 @@ def split_and_strip(s: str, sep: str) -> list[str]:
 def remove_brackets(s: str) -> str:
     return re.sub(r"(\{\{?)|(\}\}?)", "", s)
 
+def validate_template(template_row: pd.Series) -> None:
+    """
+    This function performs some non-exhaustive checks to attempt and identify any errors in the templates that might trickle down and cause confusing errors in the code later.
+    """
+
+    # the neg and non-neg answers must use different NAME variables
+    assert ("NAME1" in template_row.answer_negative_es and "NAME2" in template_row.answer_non_negative_es) or ("NAME1" in template_row.answer_non_negative_es and "NAME2" in template_row.answer_negative_es), "Same NAME variable used in both answers!"
+
+    # if any context uses WORD variables, the row must include the lexical diversity column
+    if "WORD" in template_row.ambiguous_context_es or "WORD" in template_row.disambiguating_context_es:
+        assert template_row.get("lexical_diversity_es"), "WORD variable used in context but lexical diversity is empty!"
+
 def fill_template(
     template_row: pd.Series,
     name1: str,
@@ -63,13 +75,6 @@ def fill_template(
 
         # find all the variables that are used in the text
         variables: list = re.findall(r"\{\{([^\}]+)\}\}", curr_text)
-
-        # if flipping is required, flip the name assignments, except for the ambiguous context column
-        # (we don't flip the ambiguous context to keep the same ordering as the original, non-flipped instance)
-        if flipped and (curr_text_col != "ambiguous_context_es"):
-            names_dict = flip_names_dict_keys(names_dict)
-            name2, name1 = name1, name2
-            # NOTE: this updates the variables that are defined outside the loop and thus affects all iterations after "ambiguous_context_es"
 
         # iterate over variables and replace each one
         for variable in variables:
@@ -119,13 +124,21 @@ def fill_template(
             new_text = new_text.replace("{{" + variable + "}}", subst).strip()
 
             # store the value that was used
-            values_used[variable] = subst
+            # (skip this when flipping is required for the next columns)
+            if not (flipped and curr_text_col == "ambiguous_context_es"):
+                values_used[variable] = subst
 
         # fix capitalization
         new_text = capitalize_sents(new_text)
 
         # replace the text with the new one in the new row's corresponding column
         new_row[curr_text_col] = new_text
+
+        # if flipping is required, after filling out the ambiguous context we flip the name assignments for all the next text columns
+        # (we don't flip the ambiguous context to keep the same ordering as the original, non-flipped instance)
+        if flipped and curr_text_col == "ambiguous_context_es":
+            names_dict = flip_names_dict_keys(names_dict)
+            name2, name1 = name1, name2
 
     return new_row, values_used
 
@@ -204,7 +217,7 @@ def generate_instances(
 
     # define whether the stereotyped group is in ans_neg or in ans_non_neg
     # (this is just to make sure that we save the stereotyped group as ans0 and the non-stereotyped as ans1)
-    if stereotyped_name in ans_neg.lower():
+    if stereotyped_name.lower() in ans_neg.lower():
         ans_stereotyped = ans_neg
         ans_non_stereotyped = ans_non_neg
         ans_neg_pos, ans_non_neg_pos = 0, 1
@@ -217,16 +230,14 @@ def generate_instances(
     ans_unk_pos = 2
 
     # set the answer_info values
-    if name1 in ans_neg.lower():
+    if name1.lower() in ans_neg.lower():
         # NAME1 in ans_neg and NAME2 in ans_non_neg
         answer_info[f"ans{ans_neg_pos}"] = [name1, name1_info]
         answer_info[f"ans{ans_non_neg_pos}"] = [name2, name2_info]
-    if name1 in ans_non_neg.lower():
+    if name1.lower() in ans_non_neg.lower():
         # NAME1 in ans_non_neg and NAME2 in ans_neg
         answer_info[f"ans{ans_non_neg_pos}"] = [name1, name1_info]
         answer_info[f"ans{ans_neg_pos}"] = [name2, name2_info]
-
-    breakpoint()
 
     # if name2 in ans_non_neg.lower():
     #     answer_info[f"ans{ans_non_neg_pos}"] = [name2, name2_info]
@@ -235,6 +246,9 @@ def generate_instances(
 
     # the unknown answer is always "unknown" and always placed in "ans2"
     answer_info["ans2"] = ["unknown", "unknown"]
+
+    # check that the answer infos have been filled
+    assert answer_info["ans0"] != ["", ""] and answer_info["ans1"] != ["", ""]
 
     # define the base information that is common to all 4 instances
     # (the fields that will vary are set to None so that they can be updated later but keep the ordering)
@@ -307,20 +321,24 @@ def generate_instances(
 
     return (neg_ambig_instance, neg_disambig_instance, non_neg_ambig_instance, non_neg_disambig_instance)
 
-def parse_list_from_string(s: str) -> list[str]:
+def parse_list_from_string(_string: str) -> list[str]:
     """
     Takes a string that contains a list, either as "['item', 'item', 'item']" (like a stringified Python list) or as comma-separated words ("item, item, item"), and returns the items in an actual Python list.
     """
-    if not s:
+    _string = _string.strip()
+
+    if not _string:
         return []
 
-    if s.startswith("[") and s.endswith("]"):
-        if "'" in s or '"' in s:
-            return eval(s)
+    if _string.startswith("[") and _string.endswith("]"):
+        if "'" in _string or '"' in _string:
+            _list = eval(_string)
+            _list = [item.strip() for item in _list]
+            return _list
         else:
-            s = s[1:-1]
+            _string = _string[1:-1]
 
-    return split_and_strip(s, ",")
+    return split_and_strip(_string, ",")
 
 def parse_dict_from_string(raw_string: str) -> dict:
     """
@@ -328,10 +346,12 @@ def parse_dict_from_string(raw_string: str) -> dict:
     """
     if not raw_string:
         return {}
+
     raw_string = raw_string.replace('"', "")
     key_val_strings = split_and_strip(raw_string, ";")
     key_val_pairs = [split_and_strip(_string, ":") for _string in key_val_strings]
     str_list_pairs = [[remove_brackets(key), parse_list_from_string(val)] for key, val in key_val_pairs]
+
     return dict(str_list_pairs)
 
 def group_by_specifiers(original_dict: dict) -> dict:
@@ -408,6 +428,7 @@ def flip_names_dict_keys(names_dict: dict) -> dict:
 def flatten_nested_dicts(original_dict: dict) -> dict:
     """
     Takes a dictionary that might have sub-dictionaries and flattens them all recursively into first-level key-value pairs with dot-separated nested keys.
+    e.g. {"a": {1: {i: 0, ii: 1}}} => {"a.1.i": 0, "a.1.ii": 1}
     """
     new_dict = {}
     for key, value in original_dict.items():

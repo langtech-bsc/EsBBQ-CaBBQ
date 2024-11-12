@@ -1,6 +1,6 @@
 venv/
 **/__pycache__/**
-data_es/
 .python-version
 .vscode/
 **/*.docx
+data_es/

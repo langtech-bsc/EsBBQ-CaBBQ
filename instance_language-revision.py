@@ -1,53 +1,54 @@
-import language_tool_python
 import os
 import pandas as pd
+import language_tool_python
 
+# Initialize language tool for Spanish
 tool = language_tool_python.LanguageTool('es')
 
-if not os.path.exists("instance_language-revision"):
-    os.makedirs("instance_language-revision")
+OUTPUT_DIR = "instance_language-revision"
+DATA_DIR = "data_es"
 
+# Create output directory if it doesn't exist
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Function for error checking
 def check_text(text):
     matches = tool.check(text)
-    if matches:
-        return [{
-            'error_category':match.category,
-            'error_type':match.ruleIssueType,
-            'sentence':match.context,
-            'matched_text':match.matchedText,
-            'error_message':match.message,
-            'error_replacement':match.replacements
-            } for match in matches] 
-    return None
+    return [{
+        'error_category': match.category,
+        'error_type': match.ruleIssueType,
+        'sentence': match.context,
+        'matched_text': match.matchedText,
+        'error_message': match.message,
+        'error_replacement': match.replacements
+    } for match in matches] if matches else None
 
-for file in sorted(os.listdir("data_es")):
-    if file.endswith(".full.csv"):
+# Iterate over each category instances
+for file in sorted(os.listdir(DATA_DIR)):
+    if not file.endswith(".full.csv"):
+        continue
 
-        category = file.split(".")[0]
+    category = file.split(".")[0]
 
-        df = pd.read_csv(f"data_es/{file}", low_memory=False)
-        
-        # Check all text columns for errors
-        for column in ['context', 'question', 'ans0', 'ans1']:
-            df[f'errors_{column}'] = df[column].apply(lambda x: check_text(x))
-
-        # Drop rows where all values in error columns are None
-        error_columns = ['errors_context', 'errors_question', 'errors_ans0', 'errors_ans1']
-        df = df.dropna(how='all', subset=error_columns)
-        
-        # Convert lists/dictionaries to strings for deduplication
-        for column in error_columns:
-            df[f'string_{column}'] = df[column].apply(str)
-
-        # Drop duplicates based on the stringified error columns
-        df = df.drop_duplicates(subset=['question_index', 'string_errors_context', 'string_errors_question', 'string_errors_ans0', 'string_errors_ans1'])
-        
-        # Keep only the necessary columns
-        df = df[['question_index', 'version', 'errors_context', 'errors_question', 'errors_ans0', 'errors_ans1']]
+    df = pd.read_csv(os.path.join(DATA_DIR, file), low_memory=False)
     
-        # Save data
-        output_path = f"instance_language-revision/{category}_revision.csv"
-        with open(output_path, 'w') as f:
-            df.to_csv(output_path,index=False)
+    # Check text columns for errors and save results in another column
+    error_columns = ['errors_context', 'errors_question', 'errors_ans0', 'errors_ans1']
+    text_columns = ['context', 'question', 'ans0', 'ans1']
+    for text_col, error_col in zip(text_columns, error_columns):
+        df[error_col] = df[text_col].apply(check_text)
 
-        print(f"{category} revision completed.")
+    # Filter rows with at least one error in the error columns and drop the ones without errors
+    df.dropna(how='all', subset=error_columns, inplace=True)
+    
+    # Drop exact duplicates
+    for col in error_columns:
+        df[col] = df[col].astype(str)
+    df.drop_duplicates(subset=['question_index'] + error_columns, inplace=True)
+    
+    # Select only relevant columns and save the revised DataFrame
+    output_columns = ['question_index', 'version'] + error_columns
+    output_path = os.path.join(OUTPUT_DIR, f"{category}_revision.csv")
+    df[output_columns].to_csv(output_path, index=False)
+
+    print(f"{category} revision completed.")

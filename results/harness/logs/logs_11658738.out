@@ -1,0 +1,32 @@
+START TIME: Tue Nov 12 05:10:29 PM CET 2024
+#!/bin/bash                                                                                                                                                                                                        
+#SBATCH --job-name="_12-11-2024"
+#SBATCH -D .             
+#SBATCH --output=/gpfs/projects/bsc88/text/bias/bbq/results/harness/logs/logs_%j.out  
+#SBATCH --error=/gpfs/projects/bsc88/text/bias/bbq/results/harness/logs/logs_%j.err  
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=40
+#SBATCH --nodes 1
+#SBATCH --account bsc88
+#SBATCH -t 0-06:00:00
+Available GPUs: 1
+The model name does not contain '.nemo'.
+hf (pretrained=/gpfs/projects/bsc88/text/models/instruction-tuning/models/out_instructed_models/salamandra2b_ca-en-es_v0.2,trust_remote_code=True), gen_kwargs: (None), limit: None, num_fewshot: 0, batch_size: 1
+|           Tasks            |Version|Filter|n-shot|Metric|Value |   |Stderr|
+|----------------------------|-------|------|-----:|------|-----:|---|-----:|
+|bbq_es_all                  |N/A    |none  |     0|acc   |0.3217|±  |0.0031|
+| - bbq_es_Age               |Yaml   |none  |     0|acc   |0.3086|±  |0.0092|
+| - bbq_es_DisabilityStatus  |Yaml   |none  |     0|acc   |0.2855|±  |0.0111|
+| - bbq_es_GenderIdentity    |Yaml   |none  |     0|acc   |0.3416|±  |0.0101|
+| - bbq_es_Nationality       |Yaml   |none  |     0|acc   |0.3526|±  |0.0271|
+| - bbq_es_PhysicalAppearance|Yaml   |none  |     0|acc   |0.2938|±  |0.0130|
+| - bbq_es_RaceEthnicity     |Yaml   |none  |     0|acc   |0.3006|±  |0.0057|
+| - bbq_es_SES               |Yaml   |none  |     0|acc   |0.3538|±  |0.0054|
+| - bbq_es_SexualOrientation |Yaml   |none  |     0|acc   |0.2656|±  |0.0159|
+
+|  Groups  |Version|Filter|n-shot|Metric|Value |   |Stderr|
+|----------|-------|------|-----:|------|-----:|---|-----:|
+|bbq_es_all|N/A    |none  |     0|acc   |0.3217|±  |0.0031|
+
+END TIME: Tue Nov 12 05:40:52 PM CET 2024
+JOB DURATION: 30:23

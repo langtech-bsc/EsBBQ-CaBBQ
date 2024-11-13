@@ -1,0 +1,15 @@
+START TIME: Tue Nov 12 04:55:28 PM CET 2024
+#!/bin/bash                                                                                                                                                                                                        
+#SBATCH --job-name="_12-11-2024"
+#SBATCH -D .             
+#SBATCH --output=/gpfs/projects/bsc88/text/bias/bbq/results/harness/logs/logs_%j.out  
+#SBATCH --error=/gpfs/projects/bsc88/text/bias/bbq/results/harness/logs/logs_%j.err  
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=40
+#SBATCH --nodes 1
+#SBATCH --account bsc88
+#SBATCH -t 0-06:00:00
+Available GPUs: 1
+The model name does not contain '.nemo'.
+END TIME: Tue Nov 12 04:59:44 PM CET 2024
+JOB DURATION: 4:16

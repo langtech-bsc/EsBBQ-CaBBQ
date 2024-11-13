@@ -1,0 +1,128 @@
+load SINGULARITY/3.11.5 (PATH)
+WARNING: underlay of /etc/localtime required more than 50 (101) bind mounts
+WARNING: underlay of /usr/bin/nvidia-smi required more than 50 (487) bind mounts
+13:4: not a valid test operator: (
+13:4: not a valid test operator: 535.86.10
+rm: cannot remove '/usr/local/cuda/compat/lib': Read-only file system
+rm: cannot remove '/usr/local/cuda/compat/lib': Read-only file system
+rm: cannot remove '/usr/local/cuda/compat/lib': Read-only file system
+The following values were not passed to `accelerate launch` and had defaults used instead:
+	`--num_processes` was set to a value of `1`
+	`--num_machines` was set to a value of `1`
+	`--mixed_precision` was set to a value of `'no'`
+	`--dynamo_backend` was set to a value of `'no'`
+To avoid this warning pass in values for each of the problematic parameters or run `accelerate config`.
+/usr/local/lib/python3.10/dist-packages/pandas/core/computation/expressions.py:20: UserWarning: Pandas requires version '2.7.3' or newer of 'numexpr' (version '2.7.2' currently installed).
+  from pandas.core.computation.check import NUMEXPR_INSTALLED
+2024-11-12:15:57:14,014 INFO     [__main__.py:251] Verbosity set to INFO
+2024-11-12:15:57:19,120 INFO     [__main__.py:335] Selected Tasks: ['bbq_es_all']
+2024-11-12:15:57:19,120 INFO     [__main__.py:336] Loading selected tasks...
+2024-11-12:15:57:19,120 INFO     [evaluator.py:131] Setting random seed to 1234 | Setting numpy seed to 1234 | Setting torch manual seed to 1234
+2024-11-12:15:57:19,120 INFO     [evaluator.py:177] Initializing hf model, with arguments: {'pretrained': '/gpfs/projects/bsc88/text/models/instruction-tuning/models/out_instructed_models/salamandra2b_ca-en-es_v0.2', 'trust_remote_code': True}
+2024-11-12:15:57:19,150 INFO     [huggingface.py:164] Using device 'cuda'
+You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
+2024-11-12:15:57:33,138 WARNING  [task.py:763] [Task: bbq_es_Age] metric acc is defined, but aggregation is not. using default aggregation=mean
+2024-11-12:15:57:33,138 WARNING  [task.py:775] [Task: bbq_es_Age] metric acc is defined, but higher_is_better is not. using default higher_is_better=True
+HF google storage unreachable. Downloading and preparing it from source
+2024-11-12:15:58:35,624 WARNING  [builder.py:941] HF google storage unreachable. Downloading and preparing it from source
+Downloading data files:   0%|          | 0/8 [00:00<?, ?it/s]Downloading data files: 100%|██████████| 8/8 [00:00<00:00, 2393.33it/s]
+Extracting data files:   0%|          | 0/8 [00:00<?, ?it/s]Extracting data files:  25%|██▌       | 2/8 [00:00<00:00, 17.90it/s]Extracting data files:  75%|███████▌  | 6/8 [00:00<00:00, 28.13it/s]Extracting data files: 100%|██████████| 8/8 [00:00<00:00, 29.62it/s]
+Generating test split: 0 examples [00:00, ? examples/s]Generating test split: 783 examples [00:00, 7713.30 examples/s]Generating test split: 999 examples [00:00, 8070.97 examples/s]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/dist-packages/datasets/builder.py", line 1688, in _prepare_split_single
+    writer.write(example, key)
+  File "/usr/local/lib/python3.10/dist-packages/datasets/arrow_writer.py", line 491, in write
+    self.write_examples_on_file()
+  File "/usr/local/lib/python3.10/dist-packages/datasets/arrow_writer.py", line 433, in write_examples_on_file
+    if self.schema
+  File "/usr/local/lib/python3.10/dist-packages/datasets/arrow_writer.py", line 408, in schema
+    else (pa.schema(self._features.type) if self._features is not None else None)
+  File "/usr/local/lib/python3.10/dist-packages/datasets/features/features.py", line 1643, in type
+    return get_nested_type(self)
+  File "/usr/local/lib/python3.10/dist-packages/datasets/features/features.py", line 1209, in get_nested_type
+    {key: get_nested_type(schema[key]) for key in schema}
+  File "/usr/local/lib/python3.10/dist-packages/datasets/features/features.py", line 1209, in <dictcomp>
+    {key: get_nested_type(schema[key]) for key in schema}
+  File "/usr/local/lib/python3.10/dist-packages/datasets/features/features.py", line 1212, in get_nested_type
+    return pa.struct(
+  File "pyarrow/types.pxi", line 4460, in pyarrow.lib.struct
+  File "pyarrow/types.pxi", line 3177, in pyarrow.lib.field
+  File "stringsource", line 15, in string.from_py.__pyx_convert_string_from_py_std__in_string
+TypeError: expected bytes, int found
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/dist-packages/datasets/builder.py", line 1697, in _prepare_split_single
+    num_examples, num_bytes = writer.finalize()
+  File "/usr/local/lib/python3.10/dist-packages/datasets/arrow_writer.py", line 587, in finalize
+    self.write_examples_on_file()
+  File "/usr/local/lib/python3.10/dist-packages/datasets/arrow_writer.py", line 433, in write_examples_on_file
+    if self.schema
+  File "/usr/local/lib/python3.10/dist-packages/datasets/arrow_writer.py", line 408, in schema
+    else (pa.schema(self._features.type) if self._features is not None else None)
+  File "/usr/local/lib/python3.10/dist-packages/datasets/features/features.py", line 1643, in type
+    return get_nested_type(self)
+  File "/usr/local/lib/python3.10/dist-packages/datasets/features/features.py", line 1209, in get_nested_type
+    {key: get_nested_type(schema[key]) for key in schema}
+  File "/usr/local/lib/python3.10/dist-packages/datasets/features/features.py", line 1209, in <dictcomp>
+    {key: get_nested_type(schema[key]) for key in schema}
+  File "/usr/local/lib/python3.10/dist-packages/datasets/features/features.py", line 1212, in get_nested_type
+    return pa.struct(
+  File "pyarrow/types.pxi", line 4460, in pyarrow.lib.struct
+  File "pyarrow/types.pxi", line 3177, in pyarrow.lib.field
+  File "stringsource", line 15, in string.from_py.__pyx_convert_string_from_py_std__in_string
+TypeError: expected bytes, int found
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/gpfs/scratch/bsc88/valle_eval/lm-evaluation-harness/lm_eval/__main__.py", line 423, in <module>
+    cli_evaluate()
+  File "/gpfs/scratch/bsc88/valle_eval/lm-evaluation-harness/lm_eval/__main__.py", line 346, in cli_evaluate
+    results = evaluator.simple_evaluate(
+  File "/gpfs/scratch/bsc88/valle_eval/lm-evaluation-harness/lm_eval/utils.py", line 288, in _wrapper
+    return fn(*args, **kwargs)
+  File "/gpfs/scratch/bsc88/valle_eval/lm-evaluation-harness/lm_eval/evaluator.py", line 209, in simple_evaluate
+    task_dict = get_task_dict(tasks, task_manager)
+  File "/gpfs/scratch/bsc88/valle_eval/lm-evaluation-harness/lm_eval/tasks/__init__.py", line 421, in get_task_dict
+    task_name_from_string_dict = task_manager.load_task_or_group(
+  File "/gpfs/scratch/bsc88/valle_eval/lm-evaluation-harness/lm_eval/tasks/__init__.py", line 271, in load_task_or_group
+    collections.ChainMap(*map(self._load_individual_task_or_group, task_list))
+  File "/gpfs/scratch/bsc88/valle_eval/lm-evaluation-harness/lm_eval/tasks/__init__.py", line 254, in _load_individual_task_or_group
+    **dict(collections.ChainMap(*map(fn, subtask_list))),
+  File "/gpfs/scratch/bsc88/valle_eval/lm-evaluation-harness/lm_eval/tasks/__init__.py", line 162, in _load_individual_task_or_group
+    return load_task(task_config, task=name_or_config, group=parent_name)
+  File "/gpfs/scratch/bsc88/valle_eval/lm-evaluation-harness/lm_eval/tasks/__init__.py", line 151, in load_task
+    task_object = ConfigurableTask(config=config)
+  File "/gpfs/scratch/bsc88/valle_eval/lm-evaluation-harness/lm_eval/api/task.py", line 782, in __init__
+    self.download(self.config.dataset_kwargs)
+  File "/gpfs/scratch/bsc88/valle_eval/lm-evaluation-harness/lm_eval/api/task.py", line 871, in download
+    self.dataset = datasets.load_dataset(
+  File "/usr/local/lib/python3.10/dist-packages/datasets/load.py", line 2152, in load_dataset
+    builder_instance.download_and_prepare(
+  File "/usr/local/lib/python3.10/dist-packages/datasets/builder.py", line 948, in download_and_prepare
+    self._download_and_prepare(
+  File "/usr/local/lib/python3.10/dist-packages/datasets/builder.py", line 1711, in _download_and_prepare
+    super()._download_and_prepare(
+  File "/usr/local/lib/python3.10/dist-packages/datasets/builder.py", line 1043, in _download_and_prepare
+    self._prepare_split(split_generator, **prepare_split_kwargs)
+  File "/usr/local/lib/python3.10/dist-packages/datasets/builder.py", line 1549, in _prepare_split
+    for job_id, done, content in self._prepare_split_single(
+  File "/usr/local/lib/python3.10/dist-packages/datasets/builder.py", line 1706, in _prepare_split_single
+    raise DatasetGenerationError("An error occurred while generating the dataset") from e
+datasets.builder.DatasetGenerationError: An error occurred while generating the dataset
+Traceback (most recent call last):
+  File "/usr/local/bin/accelerate", line 8, in <module>
+    sys.exit(main())
+  File "/usr/local/lib/python3.10/dist-packages/accelerate/commands/accelerate_cli.py", line 46, in main
+    args.func(args)
+  File "/usr/local/lib/python3.10/dist-packages/accelerate/commands/launch.py", line 1075, in launch_command
+    simple_launcher(args)
+  File "/usr/local/lib/python3.10/dist-packages/accelerate/commands/launch.py", line 681, in simple_launcher
+    raise subprocess.CalledProcessError(returncode=process.returncode, cmd=cmd)
+subprocess.CalledProcessError: Command '['/usr/bin/python', '-m', 'lm_eval', '--model', 'hf', '--model_args', 'pretrained=/gpfs/projects/bsc88/text/models/instruction-tuning/models/out_instructed_models/salamandra2b_ca-en-es_v0.2,trust_remote_code=True', '--tasks', 'bbq_es_all', '--num_fewshot', '0', '--batch_size', '1', '--output_path', '/gpfs/projects/bsc88/text/bias/bbq/results/harness/salamandra2b_ca-en-es_v0.2/results:salamandra2b_ca-en-es_v0.2:bbq_es_all:0-shot_11657954.json', '--log_samples', '--seed', '1234']' returned non-zero exit status 1.

@@ -3,4 +3,4 @@ venv/
 .python-version
 .vscode/
 **/*.docx
-data_es/
+**/logs/**

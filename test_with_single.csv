@@ -1,0 +1,2 @@
+,acc_a,acc_d,diff_bias_a,diff_bias_d,file
+0,0.0031446540880503146,0.5982704402515723,0.018867924528301886,0.026729559748427723,"/home/mmagued/data_transfer/gpfs/projects/bsc88/text/bias/bbq/results/harness/salamandra2b_ca-en-es_v0.2/pretrained=__gpfs__projects__bsc88__text__models__instruction-tuning__models__out_instructed_models__salamandra2b_ca-en-es_v0.2,trust_remote_code=True_bbq_es_Age.jsonl"

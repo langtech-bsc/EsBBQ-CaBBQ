@@ -11,6 +11,7 @@ results/
 instance_language-revision/
 es-tereotipando/
 es-valido/
+data_es/esbbq.py
 stereotypes_summary.py
 tables_paper.ipynb
 bbq/

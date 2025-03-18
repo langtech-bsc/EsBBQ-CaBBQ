@@ -4,8 +4,7 @@ venv/
 .vscode/
 **/*.docx
 **/logs/**
-gdrive_sync.sh
-use_venv.sh
+*.sh
 statistical_analysis/
 stats/
 results/

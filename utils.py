@@ -1,12 +1,11 @@
 import itertools
-import random
 import re
 from collections import OrderedDict
+from typing import Optional
 
 import pandas as pd
 from nltk.tokenize import sent_tokenize
 
-random.seed(1)
 
 def flatten(input_list: list) -> list:
     return list(itertools.chain(*input_list))
@@ -29,22 +28,21 @@ def validate_template(template_row: pd.Series) -> None:
     if "WORD" in template_row.ambiguous_context_es or "WORD" in template_row.disambiguating_context_es:
         assert template_row.get("lexical_diversity_es"), "WORD variable used in context but lexical diversity is empty!"
 
-    # except in GenderIdentity, stated gender is required in all the cases that don't use proper names
-    if (template_row.final_category and template_row.final_category != 'GenderIdentity') or (not template_row.final_category and template_row.Category != "GenderIdentity"):
-        assert not (template_row.get("Proper_nouns_only") == 1 and template_row.get("Stated_gender_info") == ""), "No gender info stated!"
+    # except in Gender, stated gender is required in all the cases that don't use proper names
+    if template_row.esbbq_category != 'Gender':
+        assert not (template_row.get("proper_nouns_only") == 1 and template_row.get("stated_gender_info") == ""), "No gender info stated!"
 
 def fill_template(
     template_row: pd.Series,
     name1: str,
-    gs_name1, # TODO[intersectionals]
+    gs_name1, # TODO [intersectionals]
     name2: str,
-    gs_name2, # TODO[intersectionals]
+    gs_name2, # TODO [intersectionals]
     names_dict: dict,
     lex_div_dict: dict[str, dict[str, list]],
     lex_div_assignment: dict[str, int],
     stated_gender: str,
     df_vocab: pd.DataFrame,
-    flipped: bool = False,
 ) -> tuple[pd.Series, dict[str, str]]:
     """
     Process all the text columns in a single template row to substitute the variables for the values given.
@@ -58,7 +56,6 @@ def fill_template(
         lex_div_assignment (dict[str, int]): The assignment of which words from the lexical diversity vocabulary should be used for the current texts.
         stated_gender (str): The pre-processed value from the stated gender column, if available.
         df_vocab (pd.DataFrame): The DataFrame of vocabulary for this category.
-        flipped (bool): Whether the NAME1 and NAME2 assignments should be flipped.
 
     Returns:
         tuple[pd.Series, dict[str, str]]: A pd.Series like the original row but with the processed texts, and a dict that maps all variables that occur in the texts to the values that were used to substitute them.
@@ -100,8 +97,8 @@ def fill_template(
                     subst = desired_group[selected_name_idx]
 
                 # switch to feminine version if the stated_gender is F and a feminine version is available
-                if selected_name in df_vocab.Name_es.tolist() and stated_gender == "f":
-                    vocab_row = df_vocab[df_vocab.Name_es == selected_name].iloc[0]
+                if selected_name in df_vocab.name.tolist() and stated_gender == "f":
+                    vocab_row = df_vocab[df_vocab.name == selected_name].iloc[0]
                     subst = vocab_row.get("f") if vocab_row.get("f") else selected_name
 
             elif variable.startswith("WORD"):
@@ -122,27 +119,23 @@ def fill_template(
                 subst = gs_name1 if variable.endswith("1") else gs_name2
 
             else:
-                raise Exception(f"Unrecognized variable in template with Q_id={template_row.Q_id} column '{curr_text_col}': '{variable}'")
+                raise Exception(f"Unrecognized variable in template with template_id={template_row.esbbq_template_id} column '{curr_text_col}': '{variable}'")
 
             # once the substitution is defined, replace the variable with the substitution in the text
             new_text = new_text.replace("{{" + variable + "}}", subst).strip()
 
             # store the value that was used
-            # (skip this when flipping is required for the next columns)
-            if not (flipped and curr_text_col == "ambiguous_context_es"):
-                values_used[variable] = subst
+            values_used[variable] = subst
 
         # fix capitalization
         new_text = capitalize_sents(new_text)
 
+        # fix error with SpanishRegion group 'País Vasco'
+        if "de País Vasco" in new_text:
+            new_text = new_text.replace("de País Vasco", "del País Vasco")
+
         # replace the text with the new one in the new row's corresponding column
         new_row[curr_text_col] = new_text
-
-        # if flipping is required, after filling out the ambiguous context we flip the name assignments for all the next text columns
-        # (we don't flip the ambiguous context to keep the same ordering as the original, non-flipped instance)
-        if flipped and curr_text_col == "ambiguous_context_es":
-            names_dict = flip_names_dict_keys(names_dict)
-            name2, name1 = name1, name2
 
     return new_row, values_used
 
@@ -152,8 +145,7 @@ def generate_instances(
     values_used: dict[str, str],
     name1_info: str,
     name2_info: str,
-    proper_names_only: bool,
-    flipped: bool = False,
+    proper_names_only: bool
 ) -> tuple[dict]:
     """
     Takes in the pre-processed template row and generates all four possible instances that use this template, by crossing ambiguous and disambiguating contexts and negative and non-negative questions.
@@ -165,19 +157,20 @@ def generate_instances(
         name1_info (str): Information string referring to NAME1.
         name2_info (str): Information string referring to NAME2.
         stated_gender (str): The pre-processed stated gender info column from the template.
-        flipped (bool): Whether the texts were filled with flipped names.
 
     Returns:
         tuple[dict]: A tuple of four dictionaries corresponding to the four instances.
     """
 
     # save basic information that will be present in all the instances
-    q_id = row.get("Q_id")
-    category = row.get("final_category") if row.get("final_category") else row.get("Category")
-    subcategory = row.get("Subcategory", "")
-    stated_gender_info = row.get("Stated_gender_info", "")
+    template_id = row.get("esbbq_template_id")
+    template_label = row.get("label")
+    category = row.get("esbbq_category")
+    subcategory = row.get("subcategory", "")
+    stated_gender_info = row.get("stated_gender_info", "")
     version = row.get("version", "None")
-    source = row.get("source_es", "")
+    source = row.get("esbbq_source", "")
+    source = parse_list_from_string(source)
 
     # contexts
     text_ambig = row.get("ambiguous_context_es")
@@ -191,8 +184,14 @@ def generate_instances(
     ans_neg = row.get("answer_negative_es")
     ans_non_neg = row.get("answer_non_negative_es")
 
+    # flipped
+    flipped = row.get("flipped")
+
+    # stereotype
+    social_value = row.get("relevant_social_values_es")
+
     """
-    NOTE: We have kept this format for compatibility with other BBQ versions but we don't shuffle the answers and we always put the stereotyped group in ans0, the non-stereotyped in ans1, and the unknown answer as "unknown" in ans2 because it will be handled at evaluation time.
+    NOTE: We have kept this format for compatibility with other BBQ versions but we don't shuffle the answers and we always put the unknown answer as "unknown" in ans2 because it will be handled at evaluation time.
     """
     answer_info = {"ans0": ["", ""], "ans1": ["", ""], "ans2": ["", ""]}
 
@@ -257,15 +256,18 @@ def generate_instances(
     # define the base information that is common to all 4 instances
     # (the fields that will vary are set to None so that they can be updated later but keep the ordering)
     base_example_dict = OrderedDict({
-        "question_index": q_id,
+        "template_id": template_id,
         "version": version,
+        "template_label":template_label,
+        "flipped": flipped,
         "question_polarity": None,
         "context_condition": None,
         "category": category,
-        "answer_info": answer_info,
         "subcategory": subcategory,
+        "relevant_social_value": social_value,
         "stereotyped_groups": bias_targets,
-        "variables": values_used,
+        "answer_info": answer_info,
+        # "variables": values_used,
         "stated_gender_info": stated_gender_info,
         "proper_nouns_only": proper_names_only,
         "context": None,
@@ -275,8 +277,7 @@ def generate_instances(
         "ans2": "unknown",
         "question_type": None,
         "label": None,
-        "source": source,
-        "flipped": flipped,
+        "source": source
     })
 
     # create instance with negative question and ambiguous context
@@ -297,7 +298,7 @@ def generate_instances(
         "context_condition": "disambig",
         "context": text_ambig + " " + text_disambig,
         "question": q_neg,
-        "question_type": "pro-stereo" if stereotyped_name in ans_neg else "anti-stereo",
+        "question_type": "pro-stereo" if stereotyped_name.lower() in ans_neg.lower() else "anti-stereo",
         "label": ans_neg_pos, # q_neg -> ans_neg
     }
 
@@ -319,7 +320,7 @@ def generate_instances(
         "context_condition": "disambig",
         "context": text_ambig + " " + text_disambig,
         "question": q_non_neg,  
-        "question_type": "anti-stereo" if stereotyped_name in ans_non_neg else "pro-stereo",
+        "question_type": "anti-stereo" if stereotyped_name.lower() in ans_non_neg.lower() else "pro-stereo",
         "label": ans_non_neg_pos, # q_non_neg -> ans_non_neg
     }
 
@@ -357,6 +358,48 @@ def parse_dict_from_string(raw_string: str) -> dict:
     str_list_pairs = [[remove_brackets(key), parse_list_from_string(val)] for key, val in key_val_pairs]
 
     return dict(str_list_pairs)
+
+def flip_names(text: str) -> str:
+    """
+    Flips NAME1 and NAME2 variables in a given text.
+    """
+    flipped_text = text.replace("NAME1", "TMP").replace("NAME2", "NAME1").replace("TMP", "NAME2")
+    return flipped_text
+
+def get_all_permutations(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Generates all possible permutations (4) of each row by flipping NAME1 and NAME2.
+    """
+    permuted_rows = []
+    
+    for _, row in df.iterrows():
+        # Flip = None
+        row['flipped'] = "original"
+        permuted_rows.append(row)
+
+        # Flip NAME1/NAME2 only in ambiguous context
+        flipped_row_amb = row.copy()
+        flipped_row_amb["ambiguous_context_es"] = flip_names(row["ambiguous_context_es"])
+        flipped_row_amb['flipped'] = "ambig"
+        permuted_rows.append(flipped_row_amb)
+
+        # Flip NAME1/NAME2 in disambiguating context and answers
+        flipped_row_disambig = row.copy()
+        for col in ["disambiguating_context_es","answer_negative_es","answer_non_negative_es"]:
+            flipped_row_disambig[col] = flip_names(row[col])
+            flipped_row_disambig['flipped'] = "disambig"
+        permuted_rows.append(flipped_row_disambig)
+
+        # Flip NAME1/NAME2 in all columns
+        flipped_row_all = row.copy()
+        for col in ["ambiguous_context_es","disambiguating_context_es","answer_negative_es","answer_non_negative_es"]:
+            flipped_row_all[col] = flip_names(row[col])
+            flipped_row_all['flipped'] = "all"
+        permuted_rows.append(flipped_row_all)
+
+    # Create a new DataFrame with all permutations
+    permuted_df = pd.DataFrame(permuted_rows)
+    return permuted_df
 
 def group_by_specifiers(original_dict: dict) -> dict:
     """
@@ -412,22 +455,6 @@ def get_lex_div_combinations(grouped_dict: dict) -> list[dict[str, int]]:
 
     selections = [{label : idx for label, idx in zip(labels, selection)} for selection in index_product]
     return selections
-
-def flip_names_dict_keys(names_dict: dict) -> dict:
-    """
-    This function receives a names dict like {"NAME1": [...], "NAME2": [...]} and flips the keys so that the value of NAME1 is moved to NAME2 and vice-versa.
-    """
-
-    flipped_names_dict = {}
-    for orig_key, orig_value in names_dict.items():
-        if orig_key.startswith("NAME1"):
-            new_key = orig_key.replace("NAME1", "NAME2")
-        elif orig_key.startswith("NAME2"):
-            new_key = orig_key.replace("NAME2", "NAME1")
-
-        flipped_names_dict[new_key] = orig_value
-
-    return flipped_names_dict
 
 def flatten_nested_dicts(original_dict: dict) -> dict:
     """

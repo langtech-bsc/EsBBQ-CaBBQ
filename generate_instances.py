@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-import random
 import re
 
 import pandas as pd
@@ -11,15 +10,13 @@ from utils import (
     fill_template,
     flatten_nested_dicts,
     generate_instances,
+    get_all_permutations,
     get_lex_div_combinations,
     group_by_specifiers,
     parse_dict_from_string,
     parse_list_from_string,
-    validate_template,
+    validate_template
 )
-
-# set seed to avoid non-determinism
-random.seed(1)
 
 # overwrite the get() function of pandas Series to perform str.strip before returning when the value is a string
 # this saves us from worrying too much about extra spaces in the Excel spreadsheets
@@ -35,12 +32,12 @@ pd.Series.get = new_get
 output_format_choices = ["jsonl", "csv"]
 
 # get list of categories from the filenames available in the templates folder
-all_categories = [re.match(r"final_(\w+).xlsx", fn).group(1) for fn in os.listdir("templates_es") if fn.startswith("final_")]
+all_categories = sorted([re.match(r"esbbq_(\w+).xlsx", fn).group(1) for fn in os.listdir("templates_es") if fn.startswith("esbbq_")])
 
 # create parser for the CLI arguments
 parser = argparse.ArgumentParser(prog="Generate BBQ Instances", description="This script will read the Excel files in the input folder and generate BBQ instances for all the categories. By default, generates instances from all the templates in all the categories.")
 parser.add_argument("--categories", nargs="+", choices=all_categories, default=all_categories, help="Space-separated list of categories to process templates and generate instances. If not passed, will run for all available categories.")
-parser.add_argument("--minimal", action="store_true", help="Minimize he sources of variation in instances by only taking one option from each source of variation.")
+parser.add_argument("--minimal", action="store_true", help="Minimize the sources of variation in instances by only taking one option from each source of variation.")
 parser.add_argument("--output-formats", nargs="+", choices=output_format_choices, default=output_format_choices, help="Space-separated format(s) in which to save the instances.")
 parser.add_argument("--dry-run", action="store_true", help="Generate the templates and print the logs and stats but don't actually save them to file.")
 parser.add_argument("--no-proper-names", action="store_true", help="Ignore the templates that require proper names in all categories contemplated.")
@@ -52,10 +49,10 @@ args = parser.parse_args()
 df_vocab = pd.read_excel("templates_es/vocabulary_es.xlsx", sheet_name="vocabulary_es").fillna("")
 df_proper_names = pd.read_excel("templates_es/vocabulary_proper_names_es.xlsx", sheet_name="vocabulary_proper_names_es").fillna("")
 
-df_vocab = df_vocab[df_vocab.Pilot_include == ""] # only keep the rows where Pilot_include is empty (not FALSE)
+df_vocab = df_vocab[df_vocab.include_name == ""] # only keep the rows where include_name is empty (not FALSE)
 
-df_vocab = df_vocab[["Category", "SubCat", "Name_es", "f", "Info", "stereotyped"]].map(str.strip)
-df_proper_names = df_proper_names[["Name", "gender", "ethnicity"]].map(str.strip)
+df_vocab = df_vocab[["category", "subcategory", "name", "f", "information"]].map(str.strip)
+df_proper_names = df_proper_names[["proper_name", "gender", "ethnicity"]].map(str.strip)
 
 # initialize DF for the statistics per category
 df_stats = pd.DataFrame(index=args.categories)
@@ -64,15 +61,17 @@ df_stats = pd.DataFrame(index=args.categories)
 for curr_category in args.categories:
 
     # read the category's Excel spreadsheet of templates
-    df_category = pd.read_excel(f"templates_es/final_{curr_category}.xlsx", sheet_name="Sheet1", na_filter=False).fillna("")
-
-    # filter to remove empty items
-    df_category = df_category[(df_category.ambiguous_context_es != "") & (df_category.source_es != "-") & (df_category.final_stereotyped_groups != "-")]
+    df_category = pd.read_excel(f"templates_es/esbbq_{curr_category}.xlsx", sheet_name="Sheet1", na_filter=False).fillna("")
+    
     print(f"[{curr_category}] Imported {len(df_category)} templates.")
 
     # save the number of templates in stats
-    df_stats.at[curr_category, "num_templates"] = len(set(df_category.Q_id))
+    df_stats.at[curr_category, "num_templates"] = len(set(df_category.esbbq_template_id))
     df_stats.at[curr_category, "num_rows"] = len(df_category)
+
+    # generate all possible templates with permutations of NAME1 and NAME2
+    if not args.minimal:
+        df_category = get_all_permutations(df_category)
 
     # initialize list that will contain all the instances generated for all the templates in this category
     generated_instances: list[dict] = []
@@ -84,7 +83,7 @@ for curr_category in args.categories:
         """
 
         validate_template(curr_row)
-#
+
         # dictionaries that will store pre-processed values from the names column and the lexical diversity column
         grouped_names_dict = {}
         grouped_lex_div_dict = {}
@@ -103,18 +102,15 @@ for curr_category in args.categories:
         instance_count = 0
 
         # pre-process the column of stated gender in the cases where the template should be used only for one gender
-        stated_gender: str = curr_row.get("Stated_gender_info", "").lower()
+        stated_gender: str = curr_row.get("stated_gender_info", "").lower()
         if "fake-" in stated_gender:
             # treat the case of "fake-m" and "fake-f" (used to differentiate from "m/f" when it's only grammatical gender)
             stated_gender = stated_gender.split("-")[1]
 
-        assert stated_gender in ["m", "f", ""], f"Invalid value for Stated_gender_info: `{stated_gender}`"
-
-        # store whether the row is an exceptional template where the names cannot be flipped
-        flipping_allowed: bool = curr_row.get("flip_names", True) is not False
+        assert stated_gender in ["m", "f", ""], f"Invalid value for stated_gender_info: `{stated_gender}`"
 
         # determine whether NAME1 and NAME2 need to be proper names
-        proper_names_only: bool = bool(curr_row.get("Proper_nouns_only", ""))
+        proper_names_only: bool = bool(curr_row.get("proper_nouns_only", ""))
 
         if proper_names_only and args.no_proper_names:
             # if the option to ignore proper names was passed and the current template is for proper names, skip it
@@ -125,20 +121,16 @@ for curr_category in args.categories:
         """
 
         # select the words from the vocab that match the current category
-        df_vocab_cat = df_vocab[(df_vocab.Category == curr_category) & (df_vocab.Name_es != "-")]
+        df_vocab_cat = df_vocab[(df_vocab.category == curr_category) & (df_vocab.name != "-")]
 
         # filter by subcategory if there is one
-        curr_subcategory = curr_row.get("Subcategory")
+        curr_subcategory = curr_row.get("subcategory")
         if curr_subcategory:
-            if curr_category == "GenderIdentity":
-                # skip this category because we already subverted the subcategory issue by including all the vocabulary in the names column
-                pass
-            else:
                 # filter the vocabulary for the given subcategory only
-                df_vocab_cat = df_vocab_cat[df_vocab_cat.SubCat == curr_subcategory]
+                df_vocab_cat = df_vocab_cat[df_vocab_cat.subcategory == curr_subcategory]
 
         # parse the list of stereotyped groups (i.e. bias targets) that the current template refers to
-        bias_targets: str = parse_list_from_string(curr_row.final_stereotyped_groups)
+        bias_targets: str = parse_list_from_string(curr_row.stereotyped_groups)
 
         if proper_names_only:
 
@@ -154,24 +146,23 @@ for curr_category in args.categories:
                 
                 # iterate over names to save them in the NAME1 list and store info
                 for _, row in df_names.iterrows():
-                        name = row.Name
+                        name = row.proper_name
                         name_info = f"{row.gender}, {row.ethnicity}"
-
                         name1_list.append(name)
                         name1_info_dict[name] = name_info
 
-            # for GenderIdentity with proper names, NAME1 is always female and NAME2 is always male
-            elif curr_category == "GenderIdentity":
+            # for Gender with proper names, NAME1 is always female and NAME2 is always male
+            elif curr_category == "Gender":
                 # we use only white names to avoid introducing additional bias by comparing between stereotyped ethnicities
                 df_names = df_proper_names[df_proper_names.ethnicity == "blanco"]
                 assert len(df_names)
 
                 # force NAME1 to be female
-                name1_list = df_names[df_names.gender == "f"].Name.unique().tolist()
+                name1_list = df_names[df_names.gender == "f"].proper_name.unique().tolist()
                 name1_info_dict.update({name : "f" for name in name1_list})
 
                 # force NAME2 to be male
-                name2_list = df_names[df_names.gender == "m"].Name.unique().tolist()
+                name2_list = df_names[df_names.gender == "m"].proper_name.unique().tolist()
                 name2_info_dict.update({name : "m" for name in name2_list})
 
             # In the case of other categories that use proper nouns, they can be of any gender but we don't want them to elicit any specific ethnicities so we take only typical white Spanish names
@@ -179,22 +170,26 @@ for curr_category in args.categories:
                 df_names = df_proper_names[df_proper_names.ethnicity == "blanco"]
                 df_names = df_names[df_names.gender.isin([stated_gender, ""])]
 
-                name1_list = df_names.Name.tolist()
+                name1_list = df_names.proper_name.tolist()
 
         else: # if not using proper names
 
             if curr_category == "SES" and curr_subcategory == "Occupation":
                 # for SES Occupations, options for NAME1 are all the occupations listed in the vocabulary
-                name1_list = df_vocab_cat.Name_es.unique().tolist()
+                name1_list = df_vocab_cat.name.unique().tolist()
 
-            elif curr_category != "GenderIdentity":
-                # options for NAME1 are the simply the bias targets
+            elif curr_category != "Gender":
+            # options for NAME1 are simply the bias targets
                 name1_list = bias_targets
 
             if not name2_list:
-                # initialize the options for NAME2 as the groups marked in the vocabulary as non-stereotyped, if any
-                df_vocab_non_stereotyped = df_vocab_cat[df_vocab_cat.stereotyped == "no"]
-                name2_list = df_vocab_non_stereotyped.Name_es.unique().tolist()
+                curr_non_stereotyped = curr_row.get("non_stereotyped_groups")
+                if curr_non_stereotyped:
+                    name2_list = parse_list_from_string(curr_non_stereotyped)
+                else:
+                    # initialize the options for NAME2 as the groups marked in the vocabulary as non-stereotyped, if any
+                    df_vocab_non_stereotyped = df_vocab_cat[df_vocab_cat.information == "not-stereotyped"]
+                    name2_list = df_vocab_non_stereotyped.name.unique().tolist()
 
             # get specific vocabulary from the names column if available
             # (values in the names column always override vocabulary that would otherwise be used,
@@ -215,6 +210,7 @@ for curr_category in args.categories:
         """
         LEXICAL DIVERSITY
         """
+
         lex_div_str: str = curr_row.get("lexical_diversity_es", "")
         if lex_div_str:
             lex_div_dict = parse_dict_from_string(lex_div_str)
@@ -237,7 +233,7 @@ for curr_category in args.categories:
         """
 
         for name1 in name1_list:
-            
+
             # set info field
             if name1 in name1_info_dict:
                 name1_info = name1_info_dict[name1]
@@ -249,24 +245,24 @@ for curr_category in args.categories:
             if curr_category == "SES":
                 if proper_names_only:
                     # for SES with proper names, take NAME2 from the remaining white names different from NAME1
-                    df_other_names = df_proper_names[(df_proper_names.ethnicity == "blanco") & (df_proper_names.Name != name1)]
+                    df_other_names = df_proper_names[(df_proper_names.ethnicity == "blanco") & (df_proper_names.proper_name != name1)]
 
                     if stated_gender:
                         # if the template states a specific gender to use, restrict to this gender or to genderless names
                         df_other_names = df_other_names[df_other_names.gender.isin([stated_gender, ""])]
 
-                    name2_list = df_other_names.Name.tolist()
+                    name2_list = df_other_names.proper_name.tolist()
 
                 elif curr_subcategory == "Occupation":
                 # for SES Occupations, NAME1 options can be either highSES or lowSES, so we ensure that NAME2 options are always in the opposite category
-                    name1_info = df_vocab_cat.loc[df_vocab.Name_es == name1, "Info"].iloc[0]
-                    name2_list = df_vocab_cat[df_vocab_cat.Info != name1_info].Name_es.unique().tolist()
+                    name1_info = df_vocab_cat.loc[df_vocab.name == name1, "information"].iloc[0]
+                    name2_list = df_vocab_cat[df_vocab_cat.information != name1_info].name.unique().tolist()
 
             # for race/ethnicity, NAME2 options should be the same gender as NAME1 but with the non-stereotyped ethnicity
             elif curr_category == "RaceEthnicity" and proper_names_only:
 
                 # find the non-stereotyped ethnicity
-                non_stereotyped_groups = df_vocab[df_vocab.stereotyped == "no"].Name_es.unique().tolist()
+                non_stereotyped_groups = df_vocab[df_vocab.information == "not-stereotyped"].name.unique().tolist()
 
                 # filter the proper names to those of the non-stereotyped ethnicity and same gender as NAME1
                 gender = name1_info.split(",")[0]
@@ -274,9 +270,9 @@ for curr_category in args.categories:
 
                 # iterate over names to add them to the NAME2 list and save info
                 for _, name_row in df_other_names.iterrows():
-                    name = name_row.Name
+                    name = name_row.proper_name
                     name2_list.append(name)
-                    name2_info_dict[name] = f"{gender}, {name_row.ethnicity}"                        
+                    name2_info_dict[name] = name_row.ethnicity                        
 
             assert name2_list, "No names in the list of options for NAME2!"
 
@@ -296,7 +292,7 @@ for curr_category in args.categories:
                 if curr_category == "RaceEthnicity" and proper_names_only:
                     name2_info = name2_info_dict[name2]
 
-                elif curr_category == "GenderIdentity" and proper_names_only:
+                elif curr_category == "Gender" and proper_names_only:
                     # if there is already some info on the row, append it to the existing information
                     if curr_row.get("NAME1_info"):
                         name1_info = f"{name1_info}, {curr_row.get('NAME1_info')}"
@@ -305,10 +301,10 @@ for curr_category in args.categories:
 
                 elif curr_category == "SES" and curr_subcategory == "Occupation":
                     # get the info about each name from the vocab
-                    name1_vocab_row = df_vocab.loc[df_vocab.Name_es == name1].iloc[0]
-                    name1_info = name1_vocab_row.get("Info")
-                    name2_vocab_row = df_vocab.loc[df_vocab.Name_es == name2].iloc[0]
-                    name2_info = name2_vocab_row.get("Info")
+                    name1_vocab_row = df_vocab.loc[df_vocab.name == name1].iloc[0]
+                    name1_info = name1_vocab_row.get("information")
+                    name2_vocab_row = df_vocab.loc[df_vocab.name == name2].iloc[0]
+                    name2_info = name2_vocab_row.get("information")
 
                 # if there is still no info, use the name itself
                 if not name1_info:
@@ -328,28 +324,27 @@ for curr_category in args.categories:
                     new_instances: list[dict] = generate_instances(row=new_row, bias_targets=bias_targets, values_used=values_used, name1_info=name1_info, name2_info=name2_info, proper_names_only=proper_names_only)
                     generated_instances.extend(new_instances)
 
-                    # unless column `flip_names` is set to False, generate the flipped instances
-                    if flipping_allowed and not args.minimal:
-
-                        for curr_lex_div in lex_div_combinations:
-                            # we call fill_template with the original names but with flipped=True and it will take care of flipping the name assignments where needed
-                            new_row, values_used = fill_template(template_row=curr_row, name1=name1, gs_name1=None, name2=name2, gs_name2=None, names_dict=grouped_names_dict, lex_div_dict=grouped_lex_div_dict, lex_div_assignment=curr_lex_div, stated_gender=stated_gender, df_vocab=df_vocab_cat, flipped=True)
-                            if new_row is None:
-                                continue
-
-                            # here we pass name1_info and name2_info already flipped
-                            new_instances: list[dict] = generate_instances(row=new_row, bias_targets=bias_targets, values_used=values_used, name1_info=name2_info, name2_info=name1_info, proper_names_only=proper_names_only, flipped=True)
-                            generated_instances.extend(new_instances)
-
     assert len(generated_instances), f"No instances generated for {curr_category}!"
 
+    # Generating all possible permutations of NAME1 and NAME2 creates duplicates. Deduplicate df before saving it
+    if not args.minimal:
+        # Set to track the unique combinations of relevant columns
+        seen = set()
+        deduplicated = []
+        for instance in generated_instances:
+            identifier = (instance["template_id"], instance["context"], instance["question"])
+            if identifier not in seen:
+                deduplicated.append(instance)
+                seen.add(identifier)
+        generated_instances = deduplicated
+    
     print(f"[{curr_category}] Generated {len(generated_instances)} sentences total.")
 
     # now that all the instances are generated, add sequential IDs to each instance dict
     generated_instances = [{"instance_id": instance_id, **instance_dict} for instance_id, instance_dict in enumerate(generated_instances)]
 
-    # calculate the fertility of each template (indexed by question_index and version) by counting the unique instance IDs
-    df_category_fertility = pd.DataFrame(generated_instances).groupby(["question_index", "version"])["instance_id"].count().reset_index().rename(columns={"instance_id": "instances"})
+    # calculate the fertility of each template (indexed by template_id and version) by counting the unique instance IDs
+    df_category_fertility = pd.DataFrame(generated_instances).groupby(["template_id", "version"])["instance_id"].count().reset_index().rename(columns={"instance_id": "instances"})
 
     if args.save_fertility:
         # save the fertility dict to a CSV under stats/template_fertility
@@ -395,4 +390,5 @@ for curr_category in args.categories:
     print()
 
 print("Summary:")
+print("Be careful! Avg fertility is computed among all instances, not per template.")
 print(tabulate(df_stats.reset_index(), headers=["category", *df_stats.columns], tablefmt="psql"))

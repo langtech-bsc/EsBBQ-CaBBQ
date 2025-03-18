@@ -44,10 +44,10 @@ for file in sorted(os.listdir(DATA_DIR)):
     # Drop exact duplicates
     for col in error_columns:
         df[col] = df[col].astype(str)
-    df.drop_duplicates(subset=['question_index'] + error_columns, inplace=True)
+    df.drop_duplicates(subset=['template_id'] + error_columns, inplace=True)
     
     # Select only relevant columns and save the revised DataFrame
-    output_columns = ['question_index', 'version'] + error_columns
+    output_columns = ['template_id', 'version'] + error_columns
     output_path = os.path.join(OUTPUT_DIR, f"{category}_revision.csv")
     df[output_columns].to_csv(output_path, index=False)
 

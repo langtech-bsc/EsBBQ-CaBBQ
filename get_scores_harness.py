@@ -13,6 +13,8 @@ import random
 from matplotlib.font_manager import FontProperties
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--results_dir',help="directory with Harness results")
+parser.add_argument('--output_dir',help="output directory")
 parser.add_argument('--models', help="model name(s)",nargs="+")
 parser.add_argument('--models_to_compare',nargs="*")
 parser.add_argument('--model_names', help="model name(s) in the plot. If more than one, in the same order as given in --models", required=False, nargs="*")
@@ -20,9 +22,6 @@ parser.add_argument('--model_names_to_compare',help="model name(s) in the plot. 
 parser.add_argument('--title', help="custom title for the plot. Will be also the name of the output png", required=False, default="base-instruct")
 
 args = parser.parse_args()
-
-RESULTS_DIR = "results/harness/prod-harness"
-OUTPUT_DIR = "results/bias_score/prod-harness"
 
 score_names = {"acc_ambig":f"Acc{r'$_a$'}{r'$_m$'}{r'$_b$'}",
                 "acc_disambig":f"Acc{r'$_d$'}{r'$_i$'}{r'$_s$'}{r'$_a$'}{r'$_m$'}{r'$_b$'}",
@@ -51,7 +50,7 @@ if args.model_names_to_compare:
     model_names_to_compare = {m:n for (m,n) in list(zip(args.models_to_compare,args.model_names_to_compare))}   
 
 def open_results_file(model):
-    results_dir = os.path.join(RESULTS_DIR, f"{model}/esbbq")
+    results_dir = os.path.join(args.results_dir, f"{model}/esbbq")
     results_file = [f for f in os.listdir(results_dir) if f.startswith("results")][0]
     data = open(f"{results_dir}/{results_file}")
     data = json.load(data)['results']
@@ -92,7 +91,7 @@ df_avg_tmp_2 = pd.DataFrame.from_dict(all_scores_dict_to_compare, orient='index'
 df_avg_tmp_2['model_type'] = "instruct"
 
 df_avg = pd.concat([df_avg_tmp,df_avg_tmp_2],ignore_index=False)
-df_avg.to_csv((os.path.join(OUTPUT_DIR, f"avg_scores.csv")))
+df_avg.to_csv((os.path.join(args.output_dir, f"avg_scores.csv")))
 
 ###############
 ### HEATMAP ###
@@ -168,5 +167,5 @@ for score in list(score_names.keys()):
     plt.subplots_adjust(top=0.65,left=0.2,wspace=0.1)
 
     # Save the final plot
-    plt.savefig(os.path.join(OUTPUT_DIR, f"{args.title}_{score}.png"))
-    plt.savefig(os.path.join(OUTPUT_DIR, f"{args.title}_{score}.pdf"), format="pdf")
+    plt.savefig(os.path.join(args.output_dir, f"{args.title}_{score}.png"))
+    plt.savefig(os.path.join(args.output_dir, f"{args.title}_{score}.pdf"), format="pdf")

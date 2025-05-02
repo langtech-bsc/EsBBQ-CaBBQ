@@ -6,6 +6,17 @@ from typing import Optional
 import pandas as pd
 from nltk.tokenize import sent_tokenize
 
+ling_replacements = {
+    'es': {
+        " de el ": " del ",
+        "de País Vasco": "del País Vasco"
+        },
+    'ca': {
+        " de el ": " del "
+    }
+}
+
+ca_ling_replacements = {"de el": "del"}
 
 def flatten(input_list: list) -> list:
     return list(itertools.chain(*input_list))
@@ -22,22 +33,23 @@ def validate_template(template_row: pd.Series) -> None:
     """
 
     # the neg and non-neg answers must use different NAME variables
-    assert ("NAME1" in template_row.answer_negative_es and "NAME2" in template_row.answer_non_negative_es) or ("NAME1" in template_row.answer_non_negative_es and "NAME2" in template_row.answer_negative_es), "Same NAME variable used in both answers!"
+    assert ("NAME1" in template_row.answer_negative and "NAME2" in template_row.answer_non_negative) or ("NAME1" in template_row.answer_non_negative and "NAME2" in template_row.answer_negative), "Same NAME variable used in both answers!"
 
     # if any context uses WORD variables, the row must include the lexical diversity column
-    if "WORD" in template_row.ambiguous_context_es or "WORD" in template_row.disambiguating_context_es:
-        assert template_row.get("lexical_diversity_es"), "WORD variable used in context but lexical diversity is empty!"
+    if "WORD" in template_row.ambiguous_context or "WORD" in template_row.disambiguating_context:
+        assert template_row.get("lexical_diversity"), "WORD variable used in context but lexical diversity is empty!"
 
     # except in Gender, stated gender is required in all the cases that don't use proper names
     if template_row.esbbq_category != 'Gender':
         assert not (template_row.get("proper_nouns_only") == 1 and template_row.get("stated_gender_info") == ""), "No gender info stated!"
 
 def fill_template(
+    language: str,
     template_row: pd.Series,
     name1: str,
-    gs_name1, # TODO [intersectionals]
+    # gs_name1, # TODO [intersectionals]
     name2: str,
-    gs_name2, # TODO [intersectionals]
+    # gs_name2, # TODO [intersectionals]
     names_dict: dict,
     lex_div_dict: dict[str, dict[str, list]],
     lex_div_assignment: dict[str, int],
@@ -64,11 +76,13 @@ def fill_template(
     # create a copy of the row where the text will be modified
     new_row = template_row.copy()
 
+    print(new_row['esbbq_template_id'])
+
     # initialize the dictionary that maps all occurring variables to the values used to substitute them
     values_used: dict = {}
 
     # iterate over all the columns that might have variables to fill
-    for curr_text_col in ["ambiguous_context_es", "disambiguating_context_es", "lexical_diversity_es", "question_negative_stereotype_es", "question_non_negative_es", "answer_negative_es", "answer_non_negative_es"]:
+    for curr_text_col in ["ambiguous_context", "disambiguating_context", "lexical_diversity", "question_negative_stereotype", "question_non_negative", "answer_negative", "answer_non_negative"]:
         curr_text = template_row.get(curr_text_col, "")
         assert isinstance(curr_text, str)
 
@@ -113,10 +127,10 @@ def fill_template(
                 desired_group: list = lex_div_dict[label][specifier]
                 subst: str = desired_group[curr_word_idx]
 
-            elif variable in ["GEN1", "GEN2", "OCC1", "OCC2"]:
-                # TODO[intersectionals -: this is untested and hasn't been used yet
-                assert (variable.endswith("1") and gs_name1 is not None) or (variable.endswith("2") and gs_name2 is not None)
-                subst = gs_name1 if variable.endswith("1") else gs_name2
+            # TODO[intersectionals -: this is untested and hasn't been used yet
+            # elif variable in ["GEN1", "GEN2", "OCC1", "OCC2"]:
+            #     assert (variable.endswith("1") and gs_name1 is not None) or (variable.endswith("2") and gs_name2 is not None)
+            #     subst = gs_name1 if variable.endswith("1") else gs_name2
 
             else:
                 raise Exception(f"Unrecognized variable in template with template_id={template_row.esbbq_template_id} column '{curr_text_col}': '{variable}'")
@@ -130,9 +144,9 @@ def fill_template(
         # fix capitalization
         new_text = capitalize_sents(new_text)
 
-        # fix error with SpanishRegion group 'País Vasco'
-        if "de País Vasco" in new_text:
-            new_text = new_text.replace("de País Vasco", "del País Vasco")
+        # fix linguistic errors
+        for error,replacement in ling_replacements[language].items():
+            new_text = new_text.replace(error, replacement)
 
         # replace the text with the new one in the new row's corresponding column
         new_row[curr_text_col] = new_text
@@ -173,22 +187,22 @@ def generate_instances(
     source = parse_list_from_string(source)
 
     # contexts
-    text_ambig = row.get("ambiguous_context_es")
-    text_disambig = row.get("disambiguating_context_es")
+    text_ambig = row.get("ambiguous_context")
+    text_disambig = row.get("disambiguating_context")
 
     # questions
-    q_neg = row.get("question_negative_stereotype_es")
-    q_non_neg = row.get("question_non_negative_es")
+    q_neg = row.get("question_negative_stereotype")
+    q_non_neg = row.get("question_non_negative")
 
     # answers
-    ans_neg = row.get("answer_negative_es")
-    ans_non_neg = row.get("answer_non_negative_es")
+    ans_neg = row.get("answer_negative")
+    ans_non_neg = row.get("answer_non_negative")
 
     # flipped
     flipped = row.get("flipped")
 
     # stereotype
-    social_value = row.get("relevant_social_values_es")
+    social_value = row.get("relevant_social_values")
 
     """
     NOTE: We have kept this format for compatibility with other BBQ versions but we don't shuffle the answers and we always put the unknown answer as "unknown" in ans2 because it will be handled at evaluation time.
@@ -201,7 +215,9 @@ def generate_instances(
         first_key = label_keys[0]
         raw_value = values_used[first_key]
         if first_key.endswith("-def") or first_key.endswith("-indef"):
-            return raw_value[raw_value.index(" ")+1:]
+            # return raw_value[raw_value.index(" ")+1:]
+            match = re.search(r"[ ']", raw_value)
+            return raw_value[match.end():]
         else:
             return raw_value
 
@@ -336,14 +352,14 @@ def parse_list_from_string(_string: str) -> list[str]:
         return []
 
     if _string.startswith("[") and _string.endswith("]"):
-        if "'" in _string or '"' in _string:
-            _list = eval(_string)
-            _list = [item.strip() for item in _list]
-            return _list
-        else:
-            _string = _string[1:-1]
+        content = _string[1:-1] # remove square brackets
+        items = split_and_strip(content, ",") # split on the commas
+        clean_items = [item.strip('"') for item in items] # remove surrounding quotes if any
 
-    return split_and_strip(_string, ",")
+        return clean_items
+
+    else:
+        return split_and_strip(_string, ",")
 
 def parse_dict_from_string(raw_string: str) -> dict:
     """
@@ -379,20 +395,20 @@ def get_all_permutations(df: pd.DataFrame) -> pd.DataFrame:
 
         # Flip NAME1/NAME2 only in ambiguous context
         flipped_row_amb = row.copy()
-        flipped_row_amb["ambiguous_context_es"] = flip_names(row["ambiguous_context_es"])
+        flipped_row_amb["ambiguous_context"] = flip_names(row["ambiguous_context"])
         flipped_row_amb['flipped'] = "ambig"
         permuted_rows.append(flipped_row_amb)
 
         # Flip NAME1/NAME2 in disambiguating context and answers
         flipped_row_disambig = row.copy()
-        for col in ["disambiguating_context_es","answer_negative_es","answer_non_negative_es"]:
+        for col in ["disambiguating_context","answer_negative","answer_non_negative"]:
             flipped_row_disambig[col] = flip_names(row[col])
             flipped_row_disambig['flipped'] = "disambig"
         permuted_rows.append(flipped_row_disambig)
 
         # Flip NAME1/NAME2 in all columns
         flipped_row_all = row.copy()
-        for col in ["ambiguous_context_es","disambiguating_context_es","answer_negative_es","answer_non_negative_es"]:
+        for col in ["ambiguous_context","disambiguating_context","answer_negative","answer_non_negative"]:
             flipped_row_all[col] = flip_names(row[col])
             flipped_row_all['flipped'] = "all"
         permuted_rows.append(flipped_row_all)

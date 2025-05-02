@@ -6,7 +6,7 @@ venv/
 **/logs/**
 *.sh
 statistical_analysis/
-stats/
+stats_old/
 results/
 instance_language-revision/
 es-tereotipando/
@@ -15,11 +15,10 @@ data_es/esbbq.py
 stereotypes_summary.py
 tables_paper.ipynb
 bbq/
-data_es/v0.5_2024-11-13/**
+data_es/v0.5_2024-11-13_technical-report/**
 data_es/v1.0_2025-01-17/**
 data_es/v1.0_2025-04-30_TFM/**
-templates/v0.5_2024-11-13/**
-templates/v1.0_2025-03-06/**
+templates/v0.5_2024-11-13_technical-report/**
 templates/v1.0_2025-04-30_TFM/**
 use_venv.sh
 to_hf.py

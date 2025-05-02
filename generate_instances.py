@@ -28,14 +28,22 @@ def new_get(self, key, default=None):
 
 pd.Series.get = new_get
 
+# rename columns to remove lang specification
+def rename_columns(df, lang):
+    return df.rename(columns={c:c.rsplit("_",1)[0] for c in df.columns if c.endswith(f"_{lang}")})
+
 # formats available for the output
 output_format_choices = ["jsonl", "csv"]
 
+# languages available
+languages = ["es","ca"]
+
 # get list of categories from the filenames available in the templates folder
-all_categories = sorted([re.match(r"esbbq_(\w+).xlsx", fn).group(1) for fn in os.listdir("templates_es") if fn.startswith("esbbq_")])
+all_categories = sorted([re.match(r"esbbq_(\w+)_ca_gl.xlsx", fn).group(1) for fn in os.listdir("templates") if fn.startswith("esbbq_")])
 
 # create parser for the CLI arguments
-parser = argparse.ArgumentParser(prog="Generate BBQ Instances", description="This script will read the Excel files in the input folder and generate BBQ instances for all the categories. By default, generates instances from all the templates in all the categories.")
+parser = argparse.ArgumentParser(prog="Generate EsBBQ Instances", description="This script will read the Excel files in the input folder and generate EsBBQ instances for all the categories. By default, generates instances from all the templates in all the categories.")
+parser.add_argument("--language", choices=languages, help="language to process templates and generate instances.")
 parser.add_argument("--categories", nargs="+", choices=all_categories, default=all_categories, help="Space-separated list of categories to process templates and generate instances. If not passed, will run for all available categories.")
 parser.add_argument("--minimal", action="store_true", help="Minimize the sources of variation in instances by only taking one option from each source of variation.")
 parser.add_argument("--output-formats", nargs="+", choices=output_format_choices, default=output_format_choices, help="Space-separated format(s) in which to save the instances.")
@@ -45,14 +53,27 @@ parser.add_argument("--save-fertility", action="store_true", help="Save an extra
 
 args = parser.parse_args()
 
+# get language
+lang = args.language
+
 # read and pre-process vocabulary files
-df_vocab = pd.read_excel("templates_es/vocabulary_es.xlsx", sheet_name="vocabulary_es").fillna("")
-df_proper_names = pd.read_excel("templates_es/vocabulary_proper_names_es.xlsx", sheet_name="vocabulary_proper_names_es").fillna("")
+df_vocab = pd.read_excel("templates/vocabulary_es_ca_gl.xlsx").fillna("")
+df_proper_names = pd.read_excel("templates/vocabulary_proper_names_es_ca_gl.xlsx").fillna("")
 
-df_vocab = df_vocab[df_vocab.include_name == ""] # only keep the rows where include_name is empty (not FALSE)
+# only keep the rows where include_name is empty (not FALSE)
+df_vocab = df_vocab[df_vocab.include_name == ""]
 
-df_vocab = df_vocab[["category", "subcategory", "name", "f", "information"]].map(str.strip)
-df_proper_names = df_proper_names[["proper_name", "gender", "ethnicity"]].map(str.strip)
+# filter columns according to language
+# for catalan, vocab file also include version with def articles to avoid linguistic errors
+if lang == "ca":
+    df_vocab = df_vocab[["category", "subcategory", f"name_{lang}", f"name_def_{lang}", f"f_{lang}",  f"f_def_{lang}", "information"]].map(str.strip)
+else:
+    df_vocab = df_vocab[["category", "subcategory", f"name_{lang}", f"f_{lang}", "information"]].map(str.strip)
+# rename columns
+df_vocab = rename_columns(df_vocab,lang)
+
+df_proper_names = df_proper_names[[f"proper_name_{lang}", "gender", f"ethnicity_{lang}"]].map(str.strip)
+df_proper_names = rename_columns(df_proper_names,lang)
 
 # initialize DF for the statistics per category
 df_stats = pd.DataFrame(index=args.categories)
@@ -61,8 +82,16 @@ df_stats = pd.DataFrame(index=args.categories)
 for curr_category in args.categories:
 
     # read the category's Excel spreadsheet of templates
-    df_category = pd.read_excel(f"templates_es/esbbq_{curr_category}.xlsx", sheet_name="Sheet1", na_filter=False).fillna("")
-    
+    df_category = pd.read_excel(f"templates/esbbq_{curr_category}_ca_gl.xlsx", sheet_name="Sheet1", na_filter=False).fillna("")
+
+    # filter columns according to language
+    if lang == "es":
+        df_category = df_category.drop(columns=[column for column in df_category.columns if column.endswith("_ca")])
+    elif lang == "ca":
+        df_category = df_category.drop(columns=[column for column in df_category.columns if column.endswith("_es")])
+    # rename columns
+    df_category = rename_columns(df_category,lang)
+
     print(f"[{curr_category}] Imported {len(df_category)} templates.")
 
     # save the number of templates in stats
@@ -106,7 +135,6 @@ for curr_category in args.categories:
         if "fake-" in stated_gender:
             # treat the case of "fake-m" and "fake-f" (used to differentiate from "m/f" when it's only grammatical gender)
             stated_gender = stated_gender.split("-")[1]
-
         assert stated_gender in ["m", "f", ""], f"Invalid value for stated_gender_info: `{stated_gender}`"
 
         # determine whether NAME1 and NAME2 need to be proper names
@@ -121,7 +149,7 @@ for curr_category in args.categories:
         """
 
         # select the words from the vocab that match the current category
-        df_vocab_cat = df_vocab[(df_vocab.category == curr_category) & (df_vocab.name != "-")]
+        df_vocab_cat = df_vocab[(df_vocab.category == curr_category)]
 
         # filter by subcategory if there is one
         curr_subcategory = curr_row.get("subcategory")
@@ -154,7 +182,7 @@ for curr_category in args.categories:
             # for Gender with proper names, NAME1 is always female and NAME2 is always male
             elif curr_category == "Gender":
                 # we use only white names to avoid introducing additional bias by comparing between stereotyped ethnicities
-                df_names = df_proper_names[df_proper_names.ethnicity == "blanco"]
+                df_names = df_proper_names[(df_proper_names.ethnicity == "blanco") | (df_proper_names.ethnicity == "blanc")]
                 assert len(df_names)
 
                 # force NAME1 to be female
@@ -167,7 +195,7 @@ for curr_category in args.categories:
 
             # In the case of other categories that use proper nouns, they can be of any gender but we don't want them to elicit any specific ethnicities so we take only typical white Spanish names
             else:
-                df_names = df_proper_names[df_proper_names.ethnicity == "blanco"]
+                df_names = df_proper_names[(df_proper_names.ethnicity == "blanco") | (df_proper_names.ethnicity == "blanc")]
                 df_names = df_names[df_names.gender.isin([stated_gender, ""])]
 
                 name1_list = df_names.proper_name.tolist()
@@ -194,7 +222,7 @@ for curr_category in args.categories:
             # get specific vocabulary from the names column if available
             # (values in the names column always override vocabulary that would otherwise be used,
             # and they can only be used when the template is not for proper names)
-            names_str = curr_row.get("names_es", "")
+            names_str = curr_row.get("names", "")
             if names_str:
                 names_dict = parse_dict_from_string(names_str)
                 grouped_names_dict = group_by_specifiers(names_dict)
@@ -211,7 +239,7 @@ for curr_category in args.categories:
         LEXICAL DIVERSITY
         """
 
-        lex_div_str: str = curr_row.get("lexical_diversity_es", "")
+        lex_div_str: str = curr_row.get("lexical_diversity", "")
         if lex_div_str:
             lex_div_dict = parse_dict_from_string(lex_div_str)
             grouped_lex_div_dict = group_by_specifiers(lex_div_dict)
@@ -245,7 +273,7 @@ for curr_category in args.categories:
             if curr_category == "SES":
                 if proper_names_only:
                     # for SES with proper names, take NAME2 from the remaining white names different from NAME1
-                    df_other_names = df_proper_names[(df_proper_names.ethnicity == "blanco") & (df_proper_names.proper_name != name1)]
+                    df_other_names = df_proper_names[((df_proper_names.ethnicity == "blanco") | (df_proper_names.ethnicity == "blanc")) & (df_proper_names.proper_name != name1)]
 
                     if stated_gender:
                         # if the template states a specific gender to use, restrict to this gender or to genderless names
@@ -315,7 +343,17 @@ for curr_category in args.categories:
 
                 # iterate over combinations to generate every possible version of the texts
                 for curr_lex_div in lex_div_combinations:
-                    new_row, values_used = fill_template(template_row=curr_row, name1=name1, gs_name1=None, name2=name2, gs_name2=None, names_dict=grouped_names_dict, lex_div_dict=grouped_lex_div_dict, lex_div_assignment=curr_lex_div, stated_gender=stated_gender, df_vocab=df_vocab_cat)
+                    new_row, values_used = fill_template(language=lang,
+                                                        template_row=curr_row, 
+                                                        name1=name1, 
+                                                        # gs_name1=None, 
+                                                        name2=name2, 
+                                                        # gs_name2=None, 
+                                                        names_dict=grouped_names_dict, 
+                                                        lex_div_dict=grouped_lex_div_dict, 
+                                                        lex_div_assignment=curr_lex_div, 
+                                                        stated_gender=stated_gender,
+                                                         df_vocab=df_vocab_cat)
 
                     if new_row is None:
                         continue
@@ -348,9 +386,9 @@ for curr_category in args.categories:
 
     if args.save_fertility:
         # save the fertility dict to a CSV under stats/template_fertility
-        if not os.path.exists("stats/template_fertility"):
-            os.makedirs("stats/template_fertility")
-        fertility_fn = f"stats/template_fertility/{curr_category}.fertility.csv"
+        if not os.path.exists(f"stats/{lang}/template_fertility"):
+            os.makedirs(f"stats/{lang}/template_fertility")
+        fertility_fn = f"stats/{lang}/template_fertility/{curr_category}.fertility.csv"
         df_category_fertility.to_csv(fertility_fn, index=False)
         print(f"[{curr_category}] Fertility saved to `{fertility_fn}`.")
 
@@ -359,9 +397,9 @@ for curr_category in args.categories:
     df_stats.at[curr_category, "avg_fertility"] = round(df_category_fertility.instances.mean())
 
     if args.minimal:
-        output_fn_prefix = f"data_es/{curr_category}.minimal."
+        output_fn_prefix = f"data_{lang}/{curr_category}.minimal."
     else:
-        output_fn_prefix = f"data_es/{curr_category}.full."
+        output_fn_prefix = f"data_{lang}/{curr_category}.full."
 
     # save as JSONL
     if "jsonl" in args.output_formats and not args.dry_run:

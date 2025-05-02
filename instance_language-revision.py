@@ -1,12 +1,23 @@
 import os
 import pandas as pd
 import language_tool_python
+import argparse
 
-# Initialize language tool for Spanish
-tool = language_tool_python.LanguageTool('es')
+# languages available
+languages = ["es","ca"]
 
-OUTPUT_DIR = "instance_language-revision"
-DATA_DIR = "data_es"
+parser = argparse.ArgumentParser(prog="Revise Instances", description="This script will read the instance files in the data folder and revise them for linguistic errors.")
+parser.add_argument("--language", choices=languages, help="language of the instances.")
+args = parser.parse_args()
+
+# get language
+lang = args.language
+
+# Initialize language tool
+tool = language_tool_python.LanguageTool(lang)
+
+OUTPUT_DIR = f"instance_language-revision/{lang}"
+DATA_DIR = f"data_{lang}"
 
 # Create output directory if it doesn't exist
 os.makedirs(OUTPUT_DIR, exist_ok=True)

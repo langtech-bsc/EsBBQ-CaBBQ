@@ -7,16 +7,15 @@ import pandas as pd
 from nltk.tokenize import sent_tokenize
 
 ling_replacements = {
-    'es': {
-        " de el ": " del ",
-        "de País Vasco": "del País Vasco"
-        },
-    'ca': {
-        " de el ": " del "
-    }
+    'es': [
+        (r"\bde el\b", "del"),
+        (r"\bde País Vasco\b", "del País Vasco")
+    ],
+    'ca': [
+        (r"\bde el\b", "del"),
+        (r"\bde ([aAeEèÈéÉiIoOòÒóÓuUhH])", r"d'\1")
+    ]
 }
-
-ca_ling_replacements = {"de el": "del"}
 
 def flatten(input_list: list) -> list:
     return list(itertools.chain(*input_list))
@@ -145,8 +144,8 @@ def fill_template(
         new_text = capitalize_sents(new_text)
 
         # fix linguistic errors
-        for error,replacement in ling_replacements[language].items():
-            new_text = new_text.replace(error, replacement)
+        for error,replacement in ling_replacements[language]:
+            new_text = re.sub(error, replacement, new_text)
 
         # replace the text with the new one in the new row's corresponding column
         new_row[curr_text_col] = new_text

@@ -75,8 +75,6 @@ def fill_template(
     # create a copy of the row where the text will be modified
     new_row = template_row.copy()
 
-    print(new_row['esbbq_template_id'])
-
     # initialize the dictionary that maps all occurring variables to the values used to substitute them
     values_used: dict = {}
 
@@ -96,23 +94,36 @@ def fill_template(
 
                 selected_name: str = name1 if variable.startswith("NAME1") else name2
 
-                # variable will be replaced by the selected NAME1 or NAME2...
+                # variable will be replaced by the selected NAME1 or NAME2...(*)
                 subst: str = selected_name
-
-                # ...unless there is a specifier, in which case it needs to be replaced by its corresponding -def or -indef
-                if "-" in variable:
-                    label, specifier = variable.split("-")
-
-                    assert names_dict, f"Variables with specifiers like '{variable}' can only be used with Names but the names column is empty."
-
-                    selected_name_idx: int = names_dict[label][None].index(selected_name)
-                    desired_group: list = names_dict[label][specifier]
-                    subst = desired_group[selected_name_idx]
 
                 # switch to feminine version if the stated_gender is F and a feminine version is available
                 if selected_name in df_vocab.name.tolist() and stated_gender == "f":
                     vocab_row = df_vocab[df_vocab.name == selected_name].iloc[0]
                     subst = vocab_row.get("f") if vocab_row.get("f") else selected_name
+
+                # (*)...unless there is a specifier, in which case it needs to be replaced by its corresponding -def or -indef
+                if "-" in variable:
+                    label, specifier = variable.split("-")
+
+                    # exceptionally, for CaBBQ, vocabulary for Occupation subcat. in SES needs -def specifier to avoid ling. errors
+                    if language == "ca" and new_row.esbbq_category == "SES" and new_row.subcategory == "Occupation":
+                        selected_name: str = name1 if variable.startswith("NAME1") else name2
+                        vocab_row = df_vocab[df_vocab.name == selected_name].iloc[0]
+                        # get feminine def version
+                        if stated_gender == "f":
+                            subst = vocab_row.get("f_def")
+                        # get masc def version
+                        else:
+                            subst = vocab_row.get("name_def")
+                    
+                    # for all other cases:
+                    else: 
+                        assert names_dict, f"Variables with specifiers like '{variable}' can only be used with Names but the names column is empty."
+                        selected_name_idx: int = names_dict[label][None].index(selected_name)
+                        desired_group: list = names_dict[label][specifier]
+                        subst = desired_group[selected_name_idx]
+
 
             elif variable.startswith("WORD"):
                 assert lex_div_dict and lex_div_assignment is not None, f"Text contains '{variable}' but no lexical diversity was found."

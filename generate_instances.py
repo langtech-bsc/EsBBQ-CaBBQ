@@ -353,7 +353,7 @@ for curr_category in args.categories:
                                                         lex_div_dict=grouped_lex_div_dict, 
                                                         lex_div_assignment=curr_lex_div, 
                                                         stated_gender=stated_gender,
-                                                         df_vocab=df_vocab_cat)
+                                                        df_vocab=df_vocab_cat)
 
                     if new_row is None:
                         continue

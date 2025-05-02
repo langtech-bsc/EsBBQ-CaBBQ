@@ -41,6 +41,9 @@ for file in sorted(os.listdir(DATA_DIR)):
 
     category = file.split(".")[0]
 
+    print("------------------------------")
+    print(f"{category} revision started.")
+
     df = pd.read_csv(os.path.join(DATA_DIR, file), low_memory=False)
     
     # Check text columns for errors and save results in another column
@@ -63,3 +66,4 @@ for file in sorted(os.listdir(DATA_DIR)):
     df[output_columns].to_csv(output_path, index=False)
 
     print(f"{category} revision completed.")
+    print("------------------------------")

@@ -13,6 +13,7 @@ ling_replacements = {
     ],
     'ca': [
         (r"\bde el\b", "del"),
+        (r"\ba el\b", "al"),
         (r"\bde ([aAeEèÈéÉiIoOòÒóÓuUhH])", r"d'\1")
     ]
 }

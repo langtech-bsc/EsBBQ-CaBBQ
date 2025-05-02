@@ -70,7 +70,7 @@ def get_model_pred(harness_instance):
     # get most likely answer
     model_ans = max(range(len(model_answers)), key=model_answers.__getitem__)
     model_ans = min(model_ans, 2)
-    
+
     return model_ans
 
 def get_model_answer_type(harness_instance):
@@ -98,7 +98,7 @@ def get_model_answer_type(harness_instance):
                     return 'anti-stereo'
                 else:
                     return 'pro-stereo'
-        
+
         # for ambiguous contexts, we need to check metadata
         else: 
 

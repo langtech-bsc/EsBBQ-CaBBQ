@@ -17,4 +17,12 @@ tables_paper.ipynb
 bbq/
 data_es/v0.5_2024-11-13/**
 data_es/v1.0_2025-01-17/**
-templates_es/v0.5_2024-11-13/**
+data_es/v1.0_2025-04-30_TFM/**
+templates/v0.5_2024-11-13/**
+templates/v1.0_2025-03-06/**
+templates/v1.0_2025-04-30_TFM/**
+use_venv.sh
+to_hf.py
+dataloader_temp.py
+harness_scripts/
+plot_scores_manual.py

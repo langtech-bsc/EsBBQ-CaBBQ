@@ -6,7 +6,7 @@ venv/
 **/logs/**
 *.sh
 statistical_analysis/
-stats_old/
+stats/
 results/
 instance_language-revision/
 es-tereotipando/

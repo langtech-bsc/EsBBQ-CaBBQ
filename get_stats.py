@@ -10,12 +10,30 @@ import numpy as np
 import warnings
 import seaborn as sns
 
+languages = ["es","ca"]
+
 parser = argparse.ArgumentParser()
+parser.add_argument("--language", choices=languages, help="language of the instances.")
 parser.add_argument("--templates", action="store_true", help="Process templates.")
 parser.add_argument("--instances", action="store_true", help="Process instances.")
+
 args = parser.parse_args()
 if not (args.templates or args.instances):
     parser.error("At least one of --templates or --instances is required.")
+
+lang = args.language
+
+TEMPLATE_DIR = "templates"
+DATA_DIR = f"data_{lang}"
+FERTILITY_DIR = f"stats/{lang}/template_fertility"
+OUTPUT_DIR_TEMPLATES = f"stats/{lang}/template_stats"
+OUTPUT_DIR_INSTANCES = f"stats/{lang}/instance_stats"
+
+current_date = datetime.now().date()
+
+# rename columns to remove lang specification
+def rename_columns(df, lang):
+    return df.rename(columns={c:c.rsplit("_",1)[0] for c in df.columns if c.endswith(f"_{lang}")})
 
 # Replace NaN values in 'Stated_gender_info' with 'n' (neutral), except in Gender
 def update_stated_gender_info(df):
@@ -103,13 +121,6 @@ def plot_social_groups_info(output_dir,groups_category_dict):
     # Save plot
     plt.savefig(os.path.join(output_dir, f"{current_date}_social-groups.png"), format='png', bbox_inches='tight', dpi=300)
 
-TEMPLATE_DIR = "templates_es"
-DATA_DIR = "data_es"
-FERTILITY_DIR = "stats/template_fertility"
-OUTPUT_DIR_TEMPLATES = "stats/template_stats"
-OUTPUT_DIR_INSTANCES = "stats/instance_stats"
-current_date = datetime.now().date()
-
 ####################
 ## TEMPLATE STATS ##
 ####################
@@ -127,13 +138,18 @@ if args.templates:
         if not file.startswith("esbbq"):
             continue
 
-        category = file.split("_")[1][:-5]
+        category = file.split("_")[1]
         df = pd.read_excel(os.path.join(TEMPLATE_DIR, file))
+
+        # filter columns according to language
+        if lang == "es":
+            df = df.drop(columns=[column for column in df.columns if column.endswith("_ca")])
+        elif lang == "ca":
+            df = df.drop(columns=[column for column in df.columns if column.endswith("_es")])
+        # rename columns
+        df = rename_columns(df,lang)
         
         print(f"Processing {category} category.")
-        
-        # Filter out removed templates
-        # df = df[df['stereotyped_groups'] != "-"]
 
         ######################
         ## Get gender info ###
@@ -253,7 +269,7 @@ if args.instances:
     # Save plot
     plt.savefig(os.path.join(FERTILITY_DIR,f"{current_date}_template-fertility.png"), format='png', bbox_inches='tight', dpi=300)
 
-    print("Template fertility plot saved.")
+    print("Template fertility plot saved.\n")
 
     ########################################
     ## Get gender and social groups info ###

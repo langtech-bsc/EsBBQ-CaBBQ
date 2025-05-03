@@ -8,13 +8,13 @@ from nltk.tokenize import sent_tokenize
 
 ling_replacements = {
     'es': [
-        (r"\bde el\b", "del"),
-        (r"\bde País Vasco\b", "del País Vasco")
+        (" de el ", " del "),
+        (" de País Vasco ", " del País Vasco ")
     ],
     'ca': [
-        (r"\bde el\b", "del"),
-        (r"\ba el\b", "al"),
-        (r"\bde ([aAeEèÈéÉiIoOòÒóÓuUhH])", r"d'\1")
+        (" de el ", "del "),
+        (r" ([aA]) el ", r" \1l "),
+        (r" de ([aAeEèÈéÉiIoOòÒóÓuUhH])", r" d'\1")
     ]
 }
 

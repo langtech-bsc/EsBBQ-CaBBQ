@@ -67,12 +67,12 @@ df_vocab = df_vocab[df_vocab.include_name == ""]
 # for catalan, vocab file also include version with def articles to avoid linguistic errors
 if lang == "ca":
     df_vocab = df_vocab[["category", "subcategory", f"name_{lang}", f"name_def_{lang}", f"f_{lang}",  f"f_def_{lang}", "information"]].map(str.strip)
+    df_proper_names = df_proper_names[[f"proper_name_{lang}", f"proper_name_def_{lang}", "gender", f"ethnicity_{lang}"]].map(str.strip)
 else:
     df_vocab = df_vocab[["category", "subcategory", f"name_{lang}", f"f_{lang}", "information"]].map(str.strip)
+    df_proper_names = df_proper_names[[f"proper_name_{lang}", "gender", f"ethnicity_{lang}"]].map(str.strip)
 # rename columns
 df_vocab = rename_columns(df_vocab,lang)
-
-df_proper_names = df_proper_names[[f"proper_name_{lang}", "gender", f"ethnicity_{lang}"]].map(str.strip)
 df_proper_names = rename_columns(df_proper_names,lang)
 
 # initialize DF for the statistics per category
@@ -159,6 +159,9 @@ for curr_category in args.categories:
 
         # parse the list of stereotyped groups (i.e. bias targets) that the current template refers to
         bias_targets: str = parse_list_from_string(curr_row.stereotyped_groups)
+
+        df_names = pd.DataFrame()
+        df_other_names = pd.DataFrame()
 
         if proper_names_only:
 
@@ -353,13 +356,17 @@ for curr_category in args.categories:
                                                         lex_div_dict=grouped_lex_div_dict, 
                                                         lex_div_assignment=curr_lex_div, 
                                                         stated_gender=stated_gender,
-                                                        df_vocab=df_vocab_cat)
+                                                        df_vocab=df_vocab_cat,
+                                                        proper_names_only=proper_names_only,
+                                                        df_names=df_names,
+                                                        df_other_names=df_other_names
+                                                        )
 
                     if new_row is None:
                         continue
 
                     # with the texts filled, create all possible instances that use them
-                    new_instances: list[dict] = generate_instances(row=new_row, bias_targets=bias_targets, values_used=values_used, name1_info=name1_info, name2_info=name2_info, proper_names_only=proper_names_only)
+                    new_instances: list[dict] = generate_instances(language=lang, row=new_row, bias_targets=bias_targets, values_used=values_used, name1_info=name1_info, name2_info=name2_info, proper_names_only=proper_names_only)
                     generated_instances.extend(new_instances)
 
     assert len(generated_instances), f"No instances generated for {curr_category}!"

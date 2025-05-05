@@ -8,13 +8,14 @@ from nltk.tokenize import sent_tokenize
 
 ling_replacements = {
     'es': [
-        (" de el ", " del "),
-        (" de País Vasco ", " del País Vasco ")
+        (r"\bde el\b", "del"),
+        (r"\b([aA]) el\b", r"\1l"),
     ],
     'ca': [
-        (" de el ", "del "),
-        (r" ([aA]) el ", r" \1l "),
-        (r" de ([aAeEèÈéÉiIoOòÒóÓuUhH])", r" d'\1")
+        (r"\bde el(s?)\b", r"del\1"),
+        (r"\b([aA]) el(s?)\b", r"\1l\2"),
+        (r"\bde ([aAeEèÈéÉiIoOòÒóÓuUhH])", r"d'\1"),
+        (r"\bd'io", r"de io")
     ]
 }
 
@@ -55,6 +56,9 @@ def fill_template(
     lex_div_assignment: dict[str, int],
     stated_gender: str,
     df_vocab: pd.DataFrame,
+    proper_names_only: bool,
+    df_names=pd.DataFrame,
+    df_other_names=pd.DataFrame
 ) -> tuple[pd.Series, dict[str, str]]:
     """
     Process all the text columns in a single template row to substitute the variables for the values given.
@@ -75,9 +79,11 @@ def fill_template(
 
     # create a copy of the row where the text will be modified
     new_row = template_row.copy()
-
+    
     # initialize the dictionary that maps all occurring variables to the values used to substitute them
     values_used: dict = {}
+
+    df_names = pd.concat([df_names,df_other_names],ignore_index=True)
 
     # iterate over all the columns that might have variables to fill
     for curr_text_col in ["ambiguous_context", "disambiguating_context", "lexical_diversity", "question_negative_stereotype", "question_non_negative", "answer_negative", "answer_non_negative"]:
@@ -97,6 +103,11 @@ def fill_template(
 
                 # variable will be replaced by the selected NAME1 or NAME2...(*)
                 subst: str = selected_name
+
+                # for CaBBQ, proper names need to be always preceded by the def article
+                if language == "ca" and proper_names_only:
+                    names_row = df_names[df_names.proper_name == selected_name].iloc[0]
+                    subst = names_row.get("proper_name_def")
 
                 # switch to feminine version if the stated_gender is F and a feminine version is available
                 if selected_name in df_vocab.name.tolist() and stated_gender == "f":
@@ -156,7 +167,7 @@ def fill_template(
         new_text = capitalize_sents(new_text)
 
         # fix linguistic errors
-        for error,replacement in ling_replacements[language]:
+        for error, replacement in ling_replacements[language]:
             new_text = re.sub(error, replacement, new_text)
 
         # replace the text with the new one in the new row's corresponding column
@@ -165,6 +176,7 @@ def fill_template(
     return new_row, values_used
 
 def generate_instances(
+    language: str,
     row: pd.Series,
     bias_targets: list[str],
     values_used: dict[str, str],
@@ -229,6 +241,11 @@ def generate_instances(
             # return raw_value[raw_value.index(" ")+1:]
             match = re.search(r"[ ']", raw_value)
             return raw_value[match.end():]
+        # remove article for CaBBQ proper names
+        elif language == "ca" and proper_names_only:
+            match = re.search(r"(el |la |al |l')", raw_value)
+            if match:
+                return raw_value[match.end():]
         else:
             return raw_value
 
@@ -264,11 +281,12 @@ def generate_instances(
         # NAME1 in ans_neg and NAME2 in ans_non_neg
         answer_info[f"ans{ans_neg_pos}"] = [name1, name1_info]
         answer_info[f"ans{ans_non_neg_pos}"] = [name2, name2_info]
+
     if name1.lower() in ans_non_neg.lower():
         # NAME1 in ans_non_neg and NAME2 in ans_neg
         answer_info[f"ans{ans_non_neg_pos}"] = [name1, name1_info]
         answer_info[f"ans{ans_neg_pos}"] = [name2, name2_info]
-
+        
     # if name2 in ans_non_neg.lower():
     #     answer_info[f"ans{ans_non_neg_pos}"] = [name2, name2_info]
     # if name2 in ans_neg.lower():

@@ -300,7 +300,7 @@ for curr_category in args.categories:
                 for _, name_row in df_other_names.iterrows():
                     name = name_row.proper_name
                     name2_list.append(name)
-                    name2_info_dict[name] = name_row.ethnicity                        
+                    name2_info_dict[name] = name_row.ethnicity      
 
             assert name2_list, "No names in the list of options for NAME2!"
 

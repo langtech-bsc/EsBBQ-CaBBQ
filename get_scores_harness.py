@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import random
 from matplotlib.font_manager import FontProperties
+import matplotlib.patches as patches
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--results_dir',help="directory with Harness results")
@@ -29,6 +30,7 @@ score_names = {"acc_ambig":f"Acc{r'$_a$'}{r'$_m$'}{r'$_b$'}",
                 "bias_score_disambig":f"Bias{r'$_d$'}{r'$_i$'}{r'$_s$'}{r'$_a$'}{r'$_m$'}{r'$_b$'}"}
 
 categories = [
+    "Avg.",
     "Age",
     "Disability Status",
     "Gender",
@@ -65,9 +67,12 @@ def get_model_avg_scores(model):
     scores = get_clean_cat_scores(data['esbbq'])
     return scores
 
-def get_model_cat_scores(model):
+def get_model_scores(model):
     data = open_results_file(model)
-    scores = {cat:get_clean_cat_scores(scores) for cat,scores in data.items() if cat != "esbbq"}
+    scores = {cat:get_clean_cat_scores(scores) for cat,scores in data.items()}
+    # rename key with avg score
+    scores['avg'] = scores['esbbq']
+    del scores['esbbq']
     return scores
 
 def get_df_score(data,score):
@@ -82,16 +87,16 @@ def get_df_score(data,score):
 ### SAVE CSV WITH AVG SCORES ###
 ################################
 
-all_scores_dict = {model_names[model]: get_model_avg_scores(model) for model in args.models}
-df_avg_tmp = pd.DataFrame.from_dict(all_scores_dict, orient='index')[score_names.keys()]
-df_avg_tmp['model_type'] = "base"
+# all_scores_dict = {model_names[model]: get_model_avg_scores(model) for model in args.models}
+# df_avg_tmp = pd.DataFrame.from_dict(all_scores_dict, orient='index')[score_names.keys()]
+# df_avg_tmp['model_type'] = "base"
 
-all_scores_dict_to_compare = {model_names_to_compare[model]: get_model_avg_scores(model) for model in args.models_to_compare}
-df_avg_tmp_2 = pd.DataFrame.from_dict(all_scores_dict_to_compare, orient='index')[score_names.keys()]
-df_avg_tmp_2['model_type'] = "instruct"
+# all_scores_dict_to_compare = {model_names_to_compare[model]: get_model_avg_scores(model) for model in args.models_to_compare}
+# df_avg_tmp_2 = pd.DataFrame.from_dict(all_scores_dict_to_compare, orient='index')[score_names.keys()]
+# df_avg_tmp_2['model_type'] = "instruct"
 
-df_avg = pd.concat([df_avg_tmp,df_avg_tmp_2],ignore_index=False)
-df_avg.to_csv((os.path.join(args.output_dir, f"avg_scores.csv")))
+# df_avg = pd.concat([df_avg_tmp,df_avg_tmp_2],ignore_index=False)
+# df_avg.to_csv((os.path.join(args.output_dir, f"avg_scores.csv")))
 
 ###############
 ### HEATMAP ###
@@ -104,14 +109,14 @@ cmaps = {
 }
 
 # Get cat scores for every model
-scores_dict = {model_names[model]: get_model_cat_scores(model) for model in args.models}
-scores_dict_to_compare = {model_names_to_compare[model]: get_model_cat_scores(model) for model in args.models_to_compare}
+scores_dict = {model_names[model]: get_model_scores(model) for model in args.models}
+scores_dict_to_compare = {model_names_to_compare[model]: get_model_scores(model) for model in args.models_to_compare}
 
 # Iterate over the scores and plot each heatmap in a subplot
 for score in list(score_names.keys()):
 
     # Create a single figure with 2 subplots
-    fig, axes = plt.subplots(1, 2, figsize=(15, 8))
+    fig, axes = plt.subplots(1, 2, figsize=(17,8))
     axes = axes.flatten()  # Flatten the array of axes for easy iteration
     
     cmap = cmaps['acc']
@@ -135,12 +140,16 @@ for score in list(score_names.keys()):
         # Plot each heatmap on the corresponding subplot
         if i == 0:
             df_scores = get_df_score(scores_dict,score)
+
             heatmap_data = df_scores.pivot(index='Category', columns='Model', values='Score')
             # Reorder models
             heatmap_data = heatmap_data[model_names.values()]
             sns.heatmap(heatmap_data, annot=True, cmap=cmap, cbar=False,fmt=".2f", center=center, ax=axes[i], vmin=vmin, vmax=vmax)
             axes[i].set_title(f'Base Models', pad=15, fontweight="bold",fontsize=14)
             axes[i].set_yticklabels(categories, fontstyle='oblique')
+            # Change the first label (avg)
+            axes[i].get_yticklabels()[0].set_fontweight("demi")  # Make bold
+            axes[i].get_yticklabels()[0].set_fontstyle('normal')  # Make normal (not oblique)
         else: 
             df_scores_to_compare = get_df_score(scores_dict_to_compare,score)
             heatmap_data_to_compare = df_scores_to_compare.pivot(index='Category', columns='Model', values='Score')
@@ -154,13 +163,24 @@ for score in list(score_names.keys()):
         axes[i].tick_params(axis='x', labelrotation=90, labelfontfamily="monospace")
         axes[i].xaxis.tick_top()  # Move x-axis ticks to the top
         axes[i].set(xlabel="", ylabel="")
-        axes[i].set_aspect('equal')
+        # axes[i].set_aspect('equal')
         axes[i].tick_params(labelsize=12)
 
-    # Add shared colorbar
-    cbar_ax = fig.add_axes([0.37, 0.07, 0.37, 0.02])  # [left, bottom, width, height]
-    fig.colorbar(sm, cax=cbar_ax, orientation="horizontal")
+        # Make first row (avg score) bold and black
+        for text in axes[i].texts:
+            x, y = text.get_position()
+            if int(y) == 0: 
+                text.set_color('black')
+                text.set_fontweight("demi")
+        
+        # Add a horizontal white line to separate the first row from the rest
+        axes[i].hlines(y=1, xmin=0, xmax=heatmap_data.shape[1], colors='white', linewidth=3)
 
+    # Add shared colorbar
+    cbar_ax = fig.add_axes([0.37, 0.05, 0.37, 0.02])  # [left, bottom, width, height]
+    fig.colorbar(sm, cax=cbar_ax, orientation="horizontal")
+    
+    # Set score as title
     fig.suptitle(score_names[score], fontsize=20, fontweight='bold',x=0.54,y=0.99,fontstyle="oblique")
 
     # Adjust layout for better spacing
@@ -169,3 +189,13 @@ for score in list(score_names.keys()):
     # Save the final plot
     plt.savefig(os.path.join(args.output_dir, f"{args.title}_{score}.png"))
     plt.savefig(os.path.join(args.output_dir, f"{args.title}_{score}.pdf"), format="pdf")
+
+    # Save scores per category
+    # df_scores['model_type'] = "base"
+    # df_scores_to_compare['model_type'] = "instruct"
+    # final_df = pd.concat([df_scores,df_scores_to_compare],ignore_index=True)
+    # # Set model and model types in column axis
+    # pivot_df = final_df.pivot(index='Category', columns=['Model', 'model_type'], values='Score')
+    # # Sort the column MultiIndex: by Model, then model_type (base first, instruct second)
+    # pivot_df = pivot_df.sort_index(axis=1, level=[0, 1], sort_remaining=False)
+    # pivot_df.to_csv(os.path.join(args.output_dir, f"{score}_scores.csv"))

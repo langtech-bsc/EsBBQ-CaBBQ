@@ -43,7 +43,7 @@ all_categories = sorted([re.match(r"esbbq_(\w+)_ca_gl.xlsx", fn).group(1) for fn
 
 # create parser for the CLI arguments
 parser = argparse.ArgumentParser(prog="Generate EsBBQ Instances", description="This script will read the Excel files in the input folder and generate EsBBQ instances for all the categories. By default, generates instances from all the templates in all the categories.")
-parser.add_argument("--language", choices=languages, help="language to process templates and generate instances.")
+parser.add_argument("--language", choices=languages, help="language to process templates and generate instances.", required=True)
 parser.add_argument("--categories", nargs="+", choices=all_categories, default=all_categories, help="Space-separated list of categories to process templates and generate instances. If not passed, will run for all available categories.")
 parser.add_argument("--minimal", action="store_true", help="Minimize the sources of variation in instances by only taking one option from each source of variation.")
 parser.add_argument("--output-formats", nargs="+", choices=output_format_choices, default=output_format_choices, help="Space-separated format(s) in which to save the instances.")
@@ -71,6 +71,7 @@ if lang == "ca":
 else:
     df_vocab = df_vocab[["category", "subcategory", f"name_{lang}", f"f_{lang}", "information"]].map(str.strip)
     df_proper_names = df_proper_names[[f"proper_name_{lang}", "gender", f"ethnicity_{lang}"]].map(str.strip)
+
 # rename columns
 df_vocab = rename_columns(df_vocab,lang)
 df_proper_names = rename_columns(df_proper_names,lang)
@@ -89,6 +90,7 @@ for curr_category in args.categories:
         df_category = df_category.drop(columns=[column for column in df_category.columns if column.endswith("_ca")])
     elif lang == "ca":
         df_category = df_category.drop(columns=[column for column in df_category.columns if column.endswith("_es")])
+
     # rename columns
     df_category = rename_columns(df_category,lang)
 
@@ -325,10 +327,13 @@ for curr_category in args.categories:
 
                 elif curr_category == "Gender" and proper_names_only:
                     # if there is already some info on the row, append it to the existing information
-                    if curr_row.get("NAME1_info"):
+                    if curr_row.get("NAME1_info") and curr_row.get("NAME1_info") != name1_info:
                         name1_info = f"{name1_info}, {curr_row.get('NAME1_info')}"
-                    if curr_row.get("NAME2_info"):
+                    if curr_row.get("NAME2_info") and curr_row.get("NAME2_info") != name2_info:
                         name2_info = f"{name2_info}, {curr_row.get('NAME2_info')}"
+
+                    if "m, m" in name1_info or "m, m" in name2_info:
+                        breakpoint()
 
                 elif curr_category == "SES" and curr_subcategory == "Occupation":
                     # get the info about each name from the vocab

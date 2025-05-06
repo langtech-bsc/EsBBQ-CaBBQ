@@ -24,3 +24,5 @@ to_hf.py
 dataloader_temp.py
 harness_scripts/
 plot_scores_manual.py
+instances_to_revise/
+prepare-revision-file.py

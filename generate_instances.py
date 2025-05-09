@@ -85,6 +85,8 @@ for curr_category in args.categories:
     # read the category's Excel spreadsheet of templates
     df_category = pd.read_excel(f"templates/esbbq_{curr_category}_ca_gl.xlsx", sheet_name="Sheet1", na_filter=False).fillna("")
 
+    df_category = df_category[(df_category.esbbq_template_id == 28) & (df_category.proper_nouns_only != 1)] # rm!
+
     # filter columns according to language
     if lang == "es":
         df_category = df_category.drop(columns=[column for column in df_category.columns if column.endswith("_ca")])

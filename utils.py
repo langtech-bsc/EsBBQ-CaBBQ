@@ -10,12 +10,14 @@ ling_replacements = {
     'es': [
         (r"\bde el\b", "del"),
         (r"\b([aA]) el\b", r"\1l"),
+        ("testigo de Jehová", "que es testigo de Jehová"), # improves naturality
     ],
     'ca': [
         (r"\bde el(s?)\b", r"del\1"),
         (r"\b([aA]) el(s?)\b", r"\1l\2"),
         (r"\bde ([aAeEèÈéÉiIoOòÒóÓuUhH])", r"d'\1"),
-        (r"\bd'io", r"de io")
+        (r"\bd'io", r"de io"),
+        ("testimoni de Jehovà", "que és testimoni de Jehovà"), # improves naturality
     ]
 }
 
@@ -286,7 +288,10 @@ def generate_instances(
         # NAME1 in ans_non_neg and NAME2 in ans_neg
         answer_info[f"ans{ans_non_neg_pos}"] = [name1, name1_info]
         answer_info[f"ans{ans_neg_pos}"] = [name2, name2_info]
-        
+
+    if flipped == "original":
+        breakpoint()
+
     # if name2 in ans_non_neg.lower():
     #     answer_info[f"ans{ans_non_neg_pos}"] = [name2, name2_info]
     # if name2 in ans_neg.lower():

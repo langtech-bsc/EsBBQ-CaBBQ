@@ -116,7 +116,7 @@ scores_dict_to_compare = {model_names_to_compare[model]: get_model_scores(model)
 for score in list(score_names.keys()):
 
     # Create a single figure with 2 subplots
-    fig, axes = plt.subplots(1, 2, figsize=(17,8))
+    fig, axes = plt.subplots(1, 2, figsize=(21,8))
     axes = axes.flatten()  # Flatten the array of axes for easy iteration
     
     cmap = cmaps['acc']
@@ -177,14 +177,14 @@ for score in list(score_names.keys()):
         axes[i].hlines(y=1, xmin=0, xmax=heatmap_data.shape[1], colors='white', linewidth=3)
 
     # Add shared colorbar
-    cbar_ax = fig.add_axes([0.37, 0.05, 0.37, 0.02])  # [left, bottom, width, height]
+    cbar_ax = fig.add_axes([0.34, 0.05, 0.37, 0.02])  # [left, bottom, width, height]
     fig.colorbar(sm, cax=cbar_ax, orientation="horizontal")
     
     # Set score as title
-    fig.suptitle(score_names[score], fontsize=20, fontweight='bold',x=0.54,y=0.99,fontstyle="oblique")
+    fig.suptitle(score_names[score], fontsize=20, fontweight='bold',x=0.52,y=0.99,fontstyle="oblique")
 
     # Adjust layout for better spacing
-    plt.subplots_adjust(top=0.65,left=0.2,wspace=0.1)
+    plt.subplots_adjust(top=0.65,left=0.15,wspace=0.1)
 
     # Save the final plot
     plt.savefig(os.path.join(args.output_dir, f"{args.title}_{score}.png"))

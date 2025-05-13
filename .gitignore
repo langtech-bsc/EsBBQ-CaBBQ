@@ -5,7 +5,7 @@ venv/
 **/*.docx
 **/logs/**
 *.sh
-statistical_analysis/
+additional_analysis/
 stats/
 results/
 instance_language-revision/

@@ -27,7 +27,9 @@ args = parser.parse_args()
 score_names = {"acc_ambig":f"Acc{r'$_a$'}{r'$_m$'}{r'$_b$'}",
                 "acc_disambig":f"Acc{r'$_d$'}{r'$_i$'}{r'$_s$'}{r'$_a$'}{r'$_m$'}{r'$_b$'}",
                 "bias_score_ambig":f"Bias{r'$_a$'}{r'$_m$'}{r'$_b$'}",
-                "bias_score_disambig":f"Bias{r'$_d$'}{r'$_i$'}{r'$_s$'}{r'$_a$'}{r'$_m$'}{r'$_b$'}"}
+                "bias_score_disambig":f"Bias{r'$_d$'}{r'$_i$'}{r'$_s$'}{r'$_a$'}{r'$_m$'}{r'$_b$'}",
+                "normalized_bias_ambig":f"Bias{r'$_a$'}{r'$_m$'}{r'$_b$'}",
+                "normalized_bias_disambig":f"Bias{r'$_d$'}{r'$_i$'}{r'$_s$'}{r'$_a$'}{r'$_m$'}{r'$_b$'}"}
 
 categories = [
     "Avg.",
@@ -62,10 +64,17 @@ def get_clean_cat_scores(data_dict):
     scores = {score_name.split(",")[0]:score_val for score_name,score_val in data_dict.items() if score_name.split(",")[0] in score_names.keys()}
     return scores
 
-def get_model_avg_scores(model):
-    data = open_results_file(model)
-    scores = get_clean_cat_scores(data['esbbq'])
-    return scores
+def get_max_bias_score(acc_score,context_type):
+    if context_type == 'ambig':
+        return abs(1-acc_score)
+    elif context_type == "disambig":
+        if acc_score <= 0.5:
+            return abs(2*acc_score)
+        elif acc_score > 0.5:
+            return abs(2*(1-acc_score))
+
+def get_normalized_bias_score(bias_score,max_bias_score):
+    return bias_score/max_bias_score
 
 def get_model_scores(model):
     data = open_results_file(model)
@@ -73,6 +82,12 @@ def get_model_scores(model):
     # rename key with avg score
     scores['avg'] = scores['esbbq']
     del scores['esbbq']
+    # get max bias score
+    for cat in scores.keys():
+        scores[cat]['max_bias_ambig'] = get_max_bias_score(scores[cat]['acc_ambig'],'ambig')
+        scores[cat]['max_bias_disambig'] = get_max_bias_score(scores[cat]['acc_disambig'],'disambig')
+        scores[cat]['normalized_bias_ambig'] = get_normalized_bias_score(scores[cat]['bias_score_ambig'],scores[cat]['max_bias_ambig'])
+        scores[cat]['normalized_bias_disambig'] = get_normalized_bias_score(scores[cat]['bias_score_disambig'],scores[cat]['max_bias_disambig'])
     return scores
 
 def get_df_score(data,score):
@@ -83,20 +98,17 @@ def get_df_score(data,score):
     df = pd.DataFrame(rows)
     return df
 
-################################
-### SAVE CSV WITH AVG SCORES ###
-################################
+# Get scores for every model
+scores_dict = {model_names[model]: get_model_scores(model) for model in args.models}
+scores_dict_to_compare = {model_names_to_compare[model]: get_model_scores(model) for model in args.models_to_compare}
 
-# all_scores_dict = {model_names[model]: get_model_avg_scores(model) for model in args.models}
-# df_avg_tmp = pd.DataFrame.from_dict(all_scores_dict, orient='index')[score_names.keys()]
-# df_avg_tmp['model_type'] = "base"
-
-# all_scores_dict_to_compare = {model_names_to_compare[model]: get_model_avg_scores(model) for model in args.models_to_compare}
-# df_avg_tmp_2 = pd.DataFrame.from_dict(all_scores_dict_to_compare, orient='index')[score_names.keys()]
-# df_avg_tmp_2['model_type'] = "instruct"
-
-# df_avg = pd.concat([df_avg_tmp,df_avg_tmp_2],ignore_index=False)
-# df_avg.to_csv((os.path.join(args.output_dir, f"avg_scores.csv")))
+# Save csv with avg scores
+df_tmp = pd.DataFrame({model: metrics['avg'] for model, metrics in scores_dict.items()}).T
+df_tmp['model_type'] = 'base'
+df_tmp_2 = pd.DataFrame({model: metrics['avg'] for model, metrics in scores_dict.items()}).T
+df_tmp_2['model_type'] = 'instruct'
+df_avg = pd.concat([df_tmp,df_tmp_2])
+df_avg.to_csv(os.path.join(args.output_dir, f"avg_scores.csv"))
 
 ###############
 ### HEATMAP ###
@@ -108,12 +120,9 @@ cmaps = {
     'bias_score': mcolors.LinearSegmentedColormap.from_list("orange_blue", ["#ff7f00", "white", "#1f78b4"], N=100)
 }
 
-# Get cat scores for every model
-scores_dict = {model_names[model]: get_model_scores(model) for model in args.models}
-scores_dict_to_compare = {model_names_to_compare[model]: get_model_scores(model) for model in args.models_to_compare}
-
 # Iterate over the scores and plot each heatmap in a subplot
-for score in list(score_names.keys()):
+# for score in ['acc_ambig','acc_disambig','bias_score_ambig','bias_score_disambig']:
+for score in ['acc_ambig','acc_disambig','normalized_bias_ambig','normalized_bias_disambig']:
 
     # Create a single figure with 2 subplots
     fig, axes = plt.subplots(1, 2, figsize=(21,8))
@@ -124,7 +133,7 @@ for score in list(score_names.keys()):
     vmin = 0
     vmax = 1
 
-    if score.startswith("bias_score"):
+    if 'bias' in score:
         cmap = cmaps['bias_score']
         center = 0
         vmin = -0.3
@@ -140,7 +149,6 @@ for score in list(score_names.keys()):
         # Plot each heatmap on the corresponding subplot
         if i == 0:
             df_scores = get_df_score(scores_dict,score)
-
             heatmap_data = df_scores.pivot(index='Category', columns='Model', values='Score')
             # Reorder models
             heatmap_data = heatmap_data[model_names.values()]
@@ -184,7 +192,7 @@ for score in list(score_names.keys()):
     fig.suptitle(score_names[score], fontsize=20, fontweight='bold',x=0.52,y=0.99,fontstyle="oblique")
 
     # Adjust layout for better spacing
-    plt.subplots_adjust(top=0.65,left=0.15,wspace=0.1)
+    plt.subplots_adjust(top=0.65,left=0.15,wspace=0.03)
 
     # Save the final plot
     plt.savefig(os.path.join(args.output_dir, f"{args.title}_{score}.png"))

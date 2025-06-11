@@ -5,7 +5,6 @@ venv/
 **/*.docx
 **/logs/**
 *.sh
-additional_analysis/
 stats/
 results/
 instance_language-revision/
@@ -26,3 +25,4 @@ harness_scripts/
 plot_scores_manual.py
 instances_to_revise/
 prepare-revision-file.py
+old_scripts/

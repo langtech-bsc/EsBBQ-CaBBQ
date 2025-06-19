@@ -25,6 +25,6 @@ harness_scripts/
 plot_scores_manual.py
 instances_to_revise/
 prepare-revision-file.py
-old_scripts/
 get_results_harness.py
 get_stat_analysis.py
+old_scripts/

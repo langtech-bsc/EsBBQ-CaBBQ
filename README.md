@@ -2,15 +2,13 @@
 
 ## 🔎 About EsBBQ and CaBBQ
 
-The Spanish and Catalan Bias Benchmarks for Question Answering (EsBBQ and CaBBQ) are an adaptation of the original [BBQ](https://huggingface.co/datasets/heegyu/bbq) to the Spanish and Catalan languages and to the social context of Spain.
+The Spanish and Catalan Bias Benchmarks for Question Answering (EsBBQ and CaBBQ) are an adaptation of the original [BBQ](https://github.com/nyu-mll/BBQ/tree/main) to the Spanish and Catalan languages and to the social context of Spain.
 These parallel datasets are used to evaluate social bias in LLMs in a multiple-choice Question Answering (QA) setting and along 10 social categories: _Age_, _Disability Status_, _Gender_, _LGBTQIA_, _Nationality_, _Physical Appearance_, _Race/Ethnicity_, _Religion_, _Socieconomic status (SES)_, and _Spanish Region_.
 
 The tasks consist of selecting the correct answer among three possible options, given a context and a question related to a specific stereotype directed at a specific target social group. 
 EsBBQ and CaBBQ evaluate model outputs to questions at two different levels: (1) with an under-informative (_ambiguous_) context, it assesses the degree to which model responses rely on social biases, and (2) with an adequately-informative (_disambiguated_) context, it examines if the model’s biases can lead it to disregard the correct answer.
 
 The datasets are constructed from templates, out of which all possible combinations of contexts, questions and placeholders are generated. 
-
-<img src="./images/example_template.png"/>
 
 ### Statistics
 

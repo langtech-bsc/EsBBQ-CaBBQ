@@ -1,5 +1,9 @@
 # EsBBQ and CaBBQ: The Spanish and Catalan Bias Benchmarks for Question Answering
 
+## 📖 Paper
+
+[More Information Needed]
+
 ## 🔎 About EsBBQ and CaBBQ
 
 The Spanish and Catalan Bias Benchmarks for Question Answering (EsBBQ and CaBBQ) are an adaptation of the original [BBQ](https://github.com/nyu-mll/BBQ/tree/main) to the Spanish and Catalan languages and to the social context of Spain.
@@ -28,7 +32,13 @@ The datasets are constructed from templates, out of which all possible combinati
 
 ## 📁 Repository Structure
 
-[More Information Needed]
+- `templates`: folder containing the `.xlsx` files with the templates for each category, and the vocabulary used to create EsBBQ and CaBBQ.
+- `generate_instances.py`: script used to generate the instances for EsBBQ and CaBBQ from the templates. Adapted from the [script used for BBQ](https://github.com/nyu-mll/BBQ/blob/main/generate_from_template_all_categories.py).
+- `utils.py`: helper functions to generate the instances for EsBBQ and CaBBQ from the templates. Adapted from the [script used for BBQ](https://github.com/nyu-mll/BBQ/blob/main/utils.py). 
+- `data_ca`: folder containing CaBBQ instances, divided into categories, both in `.jsonl` and `.csv`.
+- `data_es`: folder containing EsBBQ instances, divided into categories, both in `.jsonl` and `.csv`.
+- `bias_score.py`: functions to calculate the accuracy and bias scores.
+- `instance_language-revision.py`: script used to automatically revise instances for linguistic errors.
 
 ## ⚖️ Ethical Considerations
 

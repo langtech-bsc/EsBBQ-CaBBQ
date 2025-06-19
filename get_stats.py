@@ -135,10 +135,10 @@ if args.templates:
 
     # Loop through each category
     for file in sorted(os.listdir(TEMPLATE_DIR)):
-        if not file.startswith("esbbq"):
+        if file.startswith("vocabulary"):
             continue
 
-        category = file.split("_")[1]
+        category = file.split(".")[0]
         df = pd.read_excel(os.path.join(TEMPLATE_DIR, file))
 
         # filter columns according to language

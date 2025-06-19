@@ -57,8 +57,8 @@ args = parser.parse_args()
 lang = args.language
 
 # read and pre-process vocabulary files
-df_vocab = pd.read_excel("templates/vocabulary_es_ca_gl.xlsx").fillna("")
-df_proper_names = pd.read_excel("templates/vocabulary_proper_names_es_ca_gl.xlsx").fillna("")
+df_vocab = pd.read_excel("templates/vocabulary.xlsx").fillna("")
+df_proper_names = pd.read_excel("templates/vocabulary_proper_names.xlsx").fillna("")
 
 # only keep the rows where include_name is empty (not FALSE)
 df_vocab = df_vocab[df_vocab.include_name == ""]
@@ -83,7 +83,7 @@ df_stats = pd.DataFrame(index=args.categories)
 for curr_category in args.categories:
 
     # read the category's Excel spreadsheet of templates
-    df_category = pd.read_excel(f"templates/esbbq_{curr_category}_ca_gl.xlsx", sheet_name="Sheet1", na_filter=False).fillna("")
+    df_category = pd.read_excel(f"templates/{curr_category}.xlsx", sheet_name="Sheet1", na_filter=False).fillna("")
 
     # filter columns according to language
     if lang == "es":

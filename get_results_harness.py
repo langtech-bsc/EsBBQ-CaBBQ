@@ -75,8 +75,8 @@ def get_model_results(model,language):
     for cat in scores.keys():
         scores[cat]['upper_bound_bias_ambig'] = upper_bound_bias_score(scores[cat]['acc_ambig'],'ambig')
         scores[cat]['upper_bound_bias_disambig'] = upper_bound_bias_score(scores[cat]['acc_disambig'],'disambig')
-        scores[cat]['normalized_bias_ambig'] = normalized_bias_score(scores[cat]['bias_score_ambig'],scores[cat]['upper_bound_bias_ambig'])
-        scores[cat]['normalized_bias_disambig'] = normalized_bias_score(scores[cat]['bias_score_disambig'],scores[cat]['upper_bound_bias_disambig'])
+        # scores[cat]['normalized_bias_ambig'] = normalized_bias_score(scores[cat]['bias_score_ambig'],scores[cat]['upper_bound_bias_ambig'])
+        # scores[cat]['normalized_bias_disambig'] = normalized_bias_score(scores[cat]['bias_score_disambig'],scores[cat]['upper_bound_bias_disambig'])
     return scores
 
 def get_df_cat_score(data,score):
@@ -114,7 +114,7 @@ for score in ['acc_ambig','acc_disambig','bias_score_ambig','bias_score_disambig
 #for score in ['acc_ambig','acc_disambig','normalized_bias_ambig','normalized_bias_disambig']:
 
     # Create a single figure with 2 subplots
-    fig, axes = plt.subplots(1, 2, figsize=(24,7))
+    fig, axes = plt.subplots(1, 2, figsize=(25,8))
     axes = axes.flatten()  # Flatten the array of axes for easy iteration
     
     cmap = cmaps['acc']
@@ -141,8 +141,8 @@ for score in ['acc_ambig','acc_disambig','bias_score_ambig','bias_score_disambig
             heatmap_data_base = df_scores_base.pivot(index='Category', columns='Model', values='Score')
             # Reorder models
             heatmap_data_base = heatmap_data_base[model_names_base.values()]
-            sns.heatmap(heatmap_data_base, annot=True, cmap=cmap, cbar=False,fmt=".2f", center=center, ax=axes[i], vmin=vmin, vmax=vmax,annot_kws={"size": 11})
-            axes[i].set_title(f'Base Models', pad=15, fontweight="bold",fontsize=18)
+            sns.heatmap(heatmap_data_base, annot=True, cmap=cmap, cbar=False,fmt=".2f", center=center, ax=axes[i], vmin=vmin, vmax=vmax,annot_kws={"size": 14})
+            axes[i].set_title(f'Base Models', pad=15, fontweight="bold",fontsize=20)
             axes[i].set_yticklabels(categories, fontstyle='oblique')
             # Change the first label (avg)
             # axes[i].get_yticklabels()[0].set_fontweight("demi")  # Make bold
@@ -152,8 +152,8 @@ for score in ['acc_ambig','acc_disambig','bias_score_ambig','bias_score_disambig
             heatmap_data_instruct = df_scores_instruct.pivot(index='Category', columns='Model', values='Score')
             # Reorder models
             heatmap_data_instruct = heatmap_data_instruct[model_names_instruct.values()]
-            sns.heatmap(heatmap_data_instruct, annot=True, cmap=cmap, cbar=False,fmt=".2f", center=center, ax=axes[i], vmin=vmin, vmax=vmax,annot_kws={"size": 11})
-            axes[i].set_title(f'Instructed Models', pad=15, fontweight="bold",fontsize=18)
+            sns.heatmap(heatmap_data_instruct, annot=True, cmap=cmap, cbar=False,fmt=".2f", center=center, ax=axes[i], vmin=vmin, vmax=vmax,annot_kws={"size": 14})
+            axes[i].set_title(f'Instructed Models', pad=15, fontweight="bold",fontsize=20)
             axes[i].set_yticklabels("")
         
         # axes[i].set_xticklabels(model_names_base,rotation=90, fontproperties=monospace_font)

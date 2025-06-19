@@ -32,7 +32,7 @@ The datasets are constructed from templates, out of which all possible combinati
 
 ## 📁 Repository Structure
 
-- `templates`: folder containing the `.xlsx` files containing the templates for each category, and the vocabulary used to create EsBBQ and CaBBQ.
+- `templates`: folder containing the `.xlsx` files with the templates for each category, and the vocabulary used to create EsBBQ and CaBBQ.
 - `generate_instances.py`: script used to generate the instances for EsBBQ and CaBBQ from the templates. Adapted from the [script used for BBQ](https://github.com/nyu-mll/BBQ/blob/main/generate_from_template_all_categories.py).
 - `utils.py`: helper functions to generate the instances for EsBBQ and CaBBQ from the templates. Adapted from the [script used for BBQ](https://github.com/nyu-mll/BBQ/blob/main/utils.py). 
 - `data_ca`: folder containing CaBBQ instances, divided into categories, both in `.jsonl` and `.csv`.

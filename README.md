@@ -10,7 +10,7 @@ EsBBQ and CaBBQ evaluate model outputs to questions at two different levels: (1)
 
 The datasets are constructed from templates, out of which all possible combinations of contexts, questions and placeholders are generated. 
 
-<img src="./images/example_template.png" width="150" />
+<img src="./images/example_template.png"/>
 
 ### Statistics
 

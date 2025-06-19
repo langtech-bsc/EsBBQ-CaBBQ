@@ -28,3 +28,4 @@ prepare-revision-file.py
 get_results_harness.py
 get_stat_analysis.py
 old_scripts/
+get_stats.py

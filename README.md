@@ -18,16 +18,16 @@ The dataset is constructed from templates, out of which all possible combination
 
 | **Category**           | **Templates** | **Instances** |
 |------------------------|--------------:|--------------:|
-| Age                    |           23  |        4,068  |
-| Disability Status      |           27  |        2,832  |
-| Gender                 |           66  |        4,832  |
-| LGBTQIA                |           31  |        2,000  |
-| Nationality            |           15  |          504  |
-| Physical Appearance    |           32  |        3,528  |
-| Race/Ethnicity         |           51  |        3,716  |
-| Religion               |           16  |          648  |
-| SES                    |           27  |        4,204  |
-| Spanish Region         |           35  |          988  |
+| _Age_                    |           23  |        4,068  |
+| _Disability Status_      |           27  |        2,832  |
+| _Gender_                 |           66  |        4,832  |
+| _LGBTQIA_                |           31  |        2,000  |
+| _Nationality_            |           15  |          504  |
+| _Physical Appearance_    |           32  |        3,528  |
+| _Race/Ethnicity_         |           51  |        3,716  |
+| _Religion_               |           16  |          648  |
+| _SES_                    |           27  |        4,204  |
+| _Spanish Region_         |           35  |          988  |
 | **Total**              |       **323** |     **27,320** |
 
 ## File Structure

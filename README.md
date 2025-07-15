@@ -50,7 +50,7 @@ This project is distributed under Apache-2.0 license.
 
 ## 📫 Contact
 
-Language Technologies Unit (langtech@bsc.es) at the Barcelona Supercomputing Center (BSC). 
+Language Technologies Lab (langtech@bsc.es) at the Barcelona Supercomputing Center (BSC). 
 
 ## 🥇 Acknowledgements
 

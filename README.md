@@ -2,7 +2,7 @@
 
 ## 📖 Paper
 
-[More Information Needed]
+[EsBBQ and CaBBQ: The Spanish and Catalan Bias Benchmarks for Question Answering](https://arxiv.org/abs/2507.11216)
 
 ## 🔎 About EsBBQ and CaBBQ
 

@@ -2,7 +2,7 @@
 
 ## 📖 Paper
 
-[More Information Needed]
+[EsBBQ and CaBBQ: The Spanish and Catalan Bias Benchmarks for Question Answering](https://arxiv.org/abs/2507.11216)
 
 ## 🔎 About EsBBQ and CaBBQ
 
@@ -50,7 +50,7 @@ This project is distributed under Apache-2.0 license.
 
 ## 📫 Contact
 
-Language Technologies Unit (langtech@bsc.es) at the Barcelona Supercomputing Center (BSC). 
+Language Technologies Lab (langtech@bsc.es) at the Barcelona Supercomputing Center (BSC). 
 
 ## 🥇 Acknowledgements
 
@@ -58,4 +58,14 @@ This work has been promoted and financed by the Generalitat de Catalunya through
 
 ## 🖇️ Citation
 
-[More information needed]
+```
+@misc{ruizfernández2025esbbqcabbqspanishcatalan,
+      title={EsBBQ and CaBBQ: The Spanish and Catalan Bias Benchmarks for Question Answering}, 
+      author={Valle Ruiz-Fernández and Mario Mina and Júlia Falcão and Luis Vasquez-Reina and Anna Sallés and Aitor Gonzalez-Agirre and Olatz Perez-de-Viñaspre},
+      year={2025},
+      eprint={2507.11216},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2507.11216}, 
+}
+```

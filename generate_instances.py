@@ -36,10 +36,10 @@ def rename_columns(df, lang):
 output_format_choices = ["jsonl", "csv"]
 
 # languages available
-languages = ["es","ca"]
+languages = ["es","ca", "gl"]
 
 # get list of categories from the filenames available in the templates folder
-all_categories = sorted([re.match(r"esbbq_(\w+)_ca_gl.xlsx", fn).group(1) for fn in os.listdir("templates") if fn.startswith("esbbq_")])
+all_categories = sorted([re.match(r"(\w+).xlsx", fn).group(1) for fn in os.listdir("templates") if fn.endswith("xlsx") and not fn.startswith("vocabulary")])
 
 # create parser for the CLI arguments
 parser = argparse.ArgumentParser(prog="Generate EsBBQ Instances", description="This script will read the Excel files in the input folder and generate EsBBQ instances for all the categories. By default, generates instances from all the templates in all the categories.")
@@ -86,10 +86,8 @@ for curr_category in args.categories:
     df_category = pd.read_excel(f"templates/{curr_category}.xlsx", sheet_name="Sheet1", na_filter=False).fillna("")
 
     # filter columns according to language
-    if lang == "es":
-        df_category = df_category.drop(columns=[column for column in df_category.columns if column.endswith("_ca")])
-    elif lang == "ca":
-        df_category = df_category.drop(columns=[column for column in df_category.columns if column.endswith("_es")])
+    lang_suffixes = tuple(f"_{l}" for l in languages)
+    df_category = df_category.drop(columns=[col for col in df_category.columns if col.endswith(lang_suffixes) and not col.endswith(f"_{lang}")])
 
     # rename columns
     df_category = rename_columns(df_category,lang)
@@ -187,7 +185,7 @@ for curr_category in args.categories:
             # for Gender with proper names, NAME1 is always female and NAME2 is always male
             elif curr_category == "Gender":
                 # we use only white names to avoid introducing additional bias by comparing between stereotyped ethnicities
-                df_names = df_proper_names[(df_proper_names.ethnicity == "blanco") | (df_proper_names.ethnicity == "blanc")]
+                df_names = df_proper_names[df_proper_names.ethnicity.isin(["blanco", "blanc", "branco"])]
                 assert len(df_names)
 
                 # force NAME1 to be female
@@ -200,7 +198,7 @@ for curr_category in args.categories:
 
             # In the case of other categories that use proper nouns, they can be of any gender but we don't want them to elicit any specific ethnicities so we take only typical white Spanish names
             else:
-                df_names = df_proper_names[(df_proper_names.ethnicity == "blanco") | (df_proper_names.ethnicity == "blanc")]
+                df_names = df_proper_names[df_proper_names.ethnicity.ethnicity.isin(["blanco", "blanc", "branco"])]
                 df_names = df_names[df_names.gender.isin([stated_gender, ""])]
 
                 name1_list = df_names.proper_name.tolist()
@@ -278,7 +276,7 @@ for curr_category in args.categories:
             if curr_category == "SES":
                 if proper_names_only:
                     # for SES with proper names, take NAME2 from the remaining white names different from NAME1
-                    df_other_names = df_proper_names[((df_proper_names.ethnicity == "blanco") | (df_proper_names.ethnicity == "blanc")) & (df_proper_names.proper_name != name1)]
+                    df_other_names = df_proper_names[(df_proper_names.ethnicity.ethnicity.isin(["blanco", "blanc", "branco"])) & (df_proper_names.proper_name != name1)]
 
                     if stated_gender:
                         # if the template states a specific gender to use, restrict to this gender or to genderless names

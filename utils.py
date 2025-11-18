@@ -18,7 +18,25 @@ ling_replacements = {
         (r"\bde ([aAeEèÈéÉiIoOòÒóÓuUhH])", r"d'\1"),
         (r"\bd'io", r"de io"),
         ("testimoni de Jehovà", "que és testimoni de Jehovà"), # improves naturality
+    ],
+    'gl': [
+        (r"\bcon o\b", "co"),
+        (r"\bcon a\b", "coa"),
+        (r"\bcon os\b", "cos"),
+        (r"\bcon as\b", "coas"),
+        (r"\bcon un\b", "cun"),
+        (r"\bcon unha\b", "cunha"),
+        (r"\bcon uns\b", "cuns"),
+        (r"\bcon unhas\b", "cunhas"),
+        ("testemuña de Xehová", "que é testemuña de Xehová"), # improves naturality
+
     ]
+}
+
+articles = {
+    'es': r"^(el |la |al |els |las |los |l' )",
+    'ca': r"^(el |la |al |els |las |los |l' )",
+    'gl': r"^(o |a |os |as )"
 }
 
 def flatten(input_list: list) -> list:
@@ -177,8 +195,8 @@ def fill_template(
 
     return new_row, values_used
 
-def word_in_str(word, _str):
-    word = re.sub(r"^(el |la |al |els |las |los |l')", "", word)
+def word_in_str(language, word, _str):
+    word = re.sub(articles[language], "", word)
     return bool(re.search(rf"(?:(?<=\b)|(?<=\')){re.escape(word)}\b", _str, flags=re.IGNORECASE))
 
 def generate_instances(
@@ -249,7 +267,7 @@ def generate_instances(
             return raw_value[match.end():]
         # remove article for CaBBQ proper names
         elif language == "ca" and proper_names_only:
-            match = re.search(r"(el |la |al |l')", raw_value)
+            match = re.search(articles[language], raw_value)
             if match:
                 return raw_value[match.end():]
         else:
@@ -270,7 +288,7 @@ def generate_instances(
 
     # define whether the stereotyped group is in ans_neg or in ans_non_neg
     # (this is just to make sure that we save the stereotyped group as ans0 and the non-stereotyped as ans1)
-    if word_in_str(stereotyped_name, ans_neg):
+    if word_in_str(language, stereotyped_name, ans_neg):
         ans_stereotyped = ans_neg
         ans_non_stereotyped = ans_non_neg
         ans_neg_pos, ans_non_neg_pos = 0, 1
@@ -284,13 +302,13 @@ def generate_instances(
 
     # set the answer_info values
     # if name1.lower() in ans_neg.lower():
-    if word_in_str(name1, ans_neg):
+    if word_in_str(language, name1, ans_neg):
         # NAME1 in ans_neg and NAME2 in ans_non_neg
         answer_info[f"ans{ans_neg_pos}"] = [name1, name1_info]
         answer_info[f"ans{ans_non_neg_pos}"] = [name2, name2_info]
 
     # if name1.lower() in ans_non_neg.lower():
-    if word_in_str(name1, ans_non_neg):
+    if word_in_str(language, name1, ans_non_neg):
         # NAME1 in ans_non_neg and NAME2 in ans_neg
         answer_info[f"ans{ans_non_neg_pos}"] = [name1, name1_info]
         answer_info[f"ans{ans_neg_pos}"] = [name2, name2_info]
@@ -351,7 +369,7 @@ def generate_instances(
         "context_condition": "disambig",
         "context": text_ambig + " " + text_disambig,
         "question": q_neg,
-        "question_type": "pro-stereo" if word_in_str(stereotyped_name, ans_neg) else "anti-stereo",
+        "question_type": "pro-stereo" if word_in_str(language, stereotyped_name, ans_neg) else "anti-stereo",
         "label": ans_neg_pos, # q_neg -> ans_neg
     }
 
@@ -373,7 +391,7 @@ def generate_instances(
         "context_condition": "disambig",
         "context": text_ambig + " " + text_disambig,
         "question": q_non_neg,  
-        "question_type": "anti-stereo" if word_in_str(stereotyped_name, ans_non_neg) else "pro-stereo",
+        "question_type": "anti-stereo" if word_in_str(language, stereotyped_name, ans_non_neg) else "pro-stereo",
         "label": ans_non_neg_pos, # q_non_neg -> ans_non_neg
     }
 

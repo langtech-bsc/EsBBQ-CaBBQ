@@ -4,7 +4,7 @@ import language_tool_python
 import argparse
 
 # languages available
-languages = ["es","ca"]
+languages = ["es","ca", "gl"]
 
 parser = argparse.ArgumentParser(prog="Revise Instances", description="This script will read the instance files in the data folder and revise them for linguistic errors.")
 parser.add_argument("--language", choices=languages, help="language of the instances.")

@@ -28,8 +28,15 @@ ling_replacements = {
         (r"\bcon unha\b", "cunha"),
         (r"\bcon uns\b", "cuns"),
         (r"\bcon unhas\b", "cunhas"),
+        (r"\ba o\b", "ao"),
+        (r"\ba a\b", "á"),
+        (r"\ba os\b", "aos"),
+        (r"\ba as\b", "ás"),
+        (r"\bde o\b", "do"),
+        (r"\bde a\b", "da"),
+        (r"\bde os\b", "dos"),
+        (r"\bde as\b", "das"),
         ("testemuña de Xehová", "que é testemuña de Xehová"), # improves naturality
-
     ]
 }
 
@@ -142,13 +149,9 @@ def fill_template(
                     if language == "ca" and new_row.esbbq_category == "SES" and new_row.subcategory == "Occupation":
                         selected_name: str = name1 if variable.startswith("NAME1") else name2
                         vocab_row = df_vocab[df_vocab.name == selected_name].iloc[0]
-                        # get feminine def version
-                        if stated_gender == "f":
-                            subst = vocab_row.get("f_def")
-                        # get masc def version
-                        else:
-                            subst = vocab_row.get("name_def")
-                    
+                        # get feminine def version if necessary
+                        subst = vocab_row.get("f_def") if stated_gender == "f" else vocab_row.get("name_def")
+
                     # for all other cases:
                     else: 
                         assert names_dict, f"Variables with specifiers like '{variable}' can only be used with Names but the names column is empty."

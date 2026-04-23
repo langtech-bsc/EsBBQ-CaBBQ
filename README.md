@@ -50,7 +50,7 @@ This project is distributed under Apache-2.0 license.
 
 ## 📫 Contact
 
-Language Technologies Lab (langtech@bsc.es) at the Barcelona Supercomputing Center (BSC). 
+Language Modeling - AI Institute at the Barcelona Supercomputing Center (BSC). 
 
 ## 🥇 Acknowledgements
 
